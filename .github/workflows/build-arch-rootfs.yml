@@ -42,12 +42,18 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
-      - name: Prepare the short build cache
+      - name: Prepare the runner
         shell: bash
         run: |
           set -euo pipefail
+          # Reclaim the preinstalled SDKs the desktop build never uses; the
+          # hosted rootfs stage extracts a full distribution, installs packages
+          # and seals an archive, which does not fit next to them.
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+            /usr/local/share/boost /opt/hostedtoolcache/CodeQL
           sudo mkdir -p /opt/al
           sudo chown -R "$(id -u):$(id -g)" /opt/al
+          df -h /
 
       - name: Install the build host
         shell: bash
@@ -140,11 +146,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          df -h /
           sudo git config --system --add safe.directory '*'
           echo '{"format":1,"framework":"'"$PWD"'"}' > "$RUNNER_TEMP/rootfs-config.json"
           sudo -E env PATH="$PATH" HOME="$HOME" ARLINUX_CACHE_DIR="$ARLINUX_CACHE_DIR" \
             bash ./build.sh rootfs --config "$RUNNER_TEMP/rootfs-config.json" \
             --distribution arch --output "$PWD/build/artifacts/rootfs/arch/default.zip"
+          df -h /
 
       - name: Hand the build outputs back to the runner user
         shell: bash

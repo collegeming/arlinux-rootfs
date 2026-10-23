@@ -144,6 +144,12 @@ ALSA
 mkdir -p "$root/etc/arlinux"
 cp "$guest/opencode-AGENTS.md" "$root/etc/arlinux/opencode-AGENTS.md"
 
+# Download caches must not reach snapshot.tar: the seal drops var/cache from
+# the final image anyway, and several gigabytes of packages would otherwise be
+# archived, copied and discarded on every build.
+pacman -Scc --noconfirm >/dev/null 2>&1 || true
+rm -rf /var/cache/pacman/pkg/* /var/lib/pacman/sync/* /tmp/ghostty-pkg /tmp/aurlog
+
 # Completion receipt: the seal step verifies these files, not a second
 # inventory of the packages above.
 python3 -c 'import dogtail, edge_tts, pyatspi'
