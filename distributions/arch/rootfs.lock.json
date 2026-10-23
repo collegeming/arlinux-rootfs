@@ -1,0 +1,6 @@
+{
+  "url": "https://mirrors.tuna.tsinghua.edu.cn/archlinuxarm/os/ArchLinuxARM-aarch64-latest.tar.gz",
+  "sha256": "42a4eeaa038994ffd31fa173256ef2f0ef511358eeb41b9ea1f8626391b9b319",
+  "upstream": "https://archlinuxarm.org/platforms/armv8/generic",
+  "retrieved": "2026-10-23"
+}

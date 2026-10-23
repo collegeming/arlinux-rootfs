@@ -1,0 +1,7 @@
+#!/bin/bash
+# Unified terminal launcher for the ARLinux Arch desktop. kitty is the bundled
+# terminal; the wrapper exists so Nemo actions and desktop entries keep one
+# stable command name.
+dir="${1:-$PWD}"
+cd "$dir" 2>/dev/null || true
+exec kitty

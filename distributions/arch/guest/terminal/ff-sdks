@@ -1,0 +1,51 @@
+#!/bin/bash
+# ff-sdks -- print installed development tools and their versions for the
+# fastfetch command module (config.jsonc sets splitLines=true, so one per line).
+
+out=()
+
+if command -v node >/dev/null 2>&1; then
+    out+=("󰎙 Node $(node --version 2>/dev/null)")
+fi
+if command -v python3 >/dev/null 2>&1; then
+    out+=("󰌠 Python $(python3 --version 2>&1 | awk '{print $2}')")
+elif command -v python >/dev/null 2>&1; then
+    out+=("󰌠 Python $(python --version 2>&1 | awk '{print $2}')")
+fi
+if command -v cargo >/dev/null 2>&1; then
+    out+=("󱘗 Rust $(rustc --version 2>/dev/null | awk '{print $2}')")
+fi
+if command -v go >/dev/null 2>&1; then
+    out+=("󰟓 Go $(go version 2>/dev/null | awk '{print $3}' | sed 's/^go//')")
+fi
+if command -v java >/dev/null 2>&1; then
+    jver="$(java -version 2>&1 | head -1 | sed -E 's/.*"([0-9._-]+)".*/\1/')"
+    [ -n "$jver" ] && out+=("󰬳 Java $jver")
+fi
+if command -v ruby >/dev/null 2>&1; then
+    out+=("󰴭 Ruby $(ruby --version 2>/dev/null | awk '{print $2}')")
+fi
+if command -v php >/dev/null 2>&1; then
+    out+=("󰌟 PHP $(php --version 2>/dev/null | head -1 | awk '{print $2}')")
+fi
+if command -v zig >/dev/null 2>&1; then
+    out+=("󰢷 Zig $(zig version 2>/dev/null)")
+fi
+if command -v bun >/dev/null 2>&1; then
+    out+=("󰛓 Bun $(bun --version 2>/dev/null)")
+fi
+if command -v deno >/dev/null 2>&1; then
+    out+=("󰋘 Deno $(deno --version 2>/dev/null | head -1 | awk '{print $2}')")
+fi
+if command -v cmake >/dev/null 2>&1; then
+    out+=("󰔶 CMake $(cmake --version 2>/dev/null | head -1 | awk '{print $3}')")
+fi
+if command -v git >/dev/null 2>&1; then
+    out+=("󰊢 Git $(git --version 2>/dev/null | awk '{print $3}')")
+fi
+
+if [ "${#out[@]}" -eq 0 ]; then
+    printf 'none'
+else
+    printf '%s\n' "${out[@]}"
+fi

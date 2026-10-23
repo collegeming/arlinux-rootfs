@@ -1,0 +1,5 @@
+# Arch Linux ARM mirrorlist for the ARLinux desktop.
+# China-first order; the official Arch Linux ARM mirror stays last as fallback.
+Server = https://mirrors.tuna.tsinghua.edu.cn/archlinuxarm/$arch/$repo
+Server = https://mirrors.ustc.edu.cn/archlinuxarm/$arch/$repo
+Server = http://mirror.archlinuxarm.org/$arch/$repo

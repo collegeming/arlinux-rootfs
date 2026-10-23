@@ -1,9 +1,6 @@
 [submodule "distributions/debian"]
 	path = distributions/debian
 	url = https://github.com/taowen/arlinux-debian.git
-[submodule "distributions/arch"]
-	path = distributions/arch
-	url = https://github.com/taowen/arlinux-arch.git
 [submodule "distributions/omarchy"]
 	path = distributions/omarchy
 	url = https://github.com/taowen/arlinux-omarchy.git

@@ -1,0 +1,15 @@
+#!/bin/bash
+# ff-shell-stack -- print the shell stack (shell plus terminal multiplexer)
+# for the fastfetch command module. Examples: "fish", "fish (tmux)".
+shell_name="$(basename "${SHELL:-/bin/sh}")"
+stack="$shell_name"
+
+if [ -n "${TMUX:-}" ]; then
+    stack="$stack (tmux)"
+elif [ -n "${STY:-}" ]; then
+    stack="$stack (screen)"
+elif [ -n "${ZELLIJ:-}" ]; then
+    stack="$stack (zellij)"
+fi
+
+printf '%s' "$stack"

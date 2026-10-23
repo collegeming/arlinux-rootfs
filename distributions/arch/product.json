@@ -1,0 +1,17 @@
+{
+  "$schema": "../../schemas/product.schema.json",
+  "name": "Arch Linux (Niri-style Desktop)",
+  "compositor": "hyprland",
+  "libraryDirectories": [
+    "usr/lib"
+  ],
+  "requiredFiles": [
+    "usr/bin/pacman",
+    "etc/pacman.conf"
+  ],
+  "environment": {
+    "GCONV_PATH": "${RUNTIME}/usr/lib/gconv",
+    "GIO_MODULE_DIR": "${RUNTIME}/usr/lib/gio/modules",
+    "LOCPATH": "${RUNTIME}/usr/lib/locale"
+  }
+}

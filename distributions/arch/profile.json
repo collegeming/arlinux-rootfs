@@ -1,0 +1,45 @@
+{
+  "$schema": "../../schemas/profile.schema.json",
+  "schemaVersion": 3,
+  "id": "desktop",
+  "name": "Arch Linux Desktop",
+  "display": {
+    "dpi": 144,
+    "socket": "filesystem"
+  },
+  "launch": {
+    "executable": "${RUNTIME}/usr/bin/dbus-run-session",
+    "workingDirectory": "${HOME}",
+    "arguments": [
+      "--",
+      "${RUNTIME}/usr/lib/arlinux/accessibility-session.sh",
+      "${RUNTIME}/usr/bin/bash",
+      "${RUNTIME}/usr/lib/arlinux/guest/desktop.sh"
+    ],
+    "environment": {
+      "DISPLAY": "${DISPLAY}",
+      "HOME": "${HOME}",
+      "XDG_RUNTIME_DIR": "${FILES}/runtime",
+      "XKB_CONFIG_ROOT": "${FILES}/xkb",
+      "GDK_BACKEND": "wayland,x11",
+      "XDG_DATA_DIRS": "${RUNTIME}/usr/share",
+      "QT_QPA_PLATFORM": "wayland",
+      "SHELL": "${RUNTIME}/usr/bin/fish",
+      "TERM": "xterm-256color",
+      "PATH": "${RUNTIME}/usr/local/sbin:${RUNTIME}/usr/local/bin:${RUNTIME}/usr/sbin:${RUNTIME}/usr/bin:${RUNTIME}/sbin:${RUNTIME}/bin:/product/bin:/system/bin",
+      "LANG": "zh_CN.UTF-8",
+      "LC_ALL": "zh_CN.UTF-8",
+      "TZ": "Asia/Shanghai",
+      "QSG_RHI_BACKEND": "opengl",
+      "XDG_CURRENT_DESKTOP": "Hyprland",
+      "XDG_SESSION_TYPE": "wayland",
+      "XDG_CONFIG_HOME": "${HOME}/.config",
+      "XDG_STATE_HOME": "${HOME}/.local/state",
+      "XDG_CACHE_HOME": "${HOME}/.cache",
+      "ACCESSIBILITY_ENABLED": "1",
+      "GTK_IM_MODULE": "ibus",
+      "QT_IM_MODULE": "ibus",
+      "XMODIFIERS": "@im=ibus"
+    }
+  }
+}

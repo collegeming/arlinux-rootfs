@@ -1,0 +1,129 @@
+#!/bin/sh
+# Desktop user-land configuration for the Arch ARLinux image. Runs inside the
+# disposable package stage after the package set is installed.
+#
+# Covers: Chinese locale and Shanghai time, terminal (kitty + fish + Tide),
+# Maple Mono font, Noctalia shell defaults, Nemo integration, fcitx5/Rime
+# profile and the per-instance home template.
+set -eu
+root=/
+guest=/usr/lib/arlinux/guest
+skel=/usr/share/arlinux/skel-home
+
+# --- Chinese locale and Asia/Shanghai time -------------------------------
+sed -i 's/^#\(en_US\.UTF-8 UTF-8\)/\1/' /etc/locale.gen
+grep -q '^zh_CN.UTF-8 UTF-8' /etc/locale.gen || printf 'zh_CN.UTF-8 UTF-8\n' >> /etc/locale.gen
+locale-gen
+printf 'LANG=zh_CN.UTF-8\nLC_ALL=zh_CN.UTF-8\n' > /etc/locale.conf
+ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
+printf 'Asia/Shanghai\n' > /etc/timezone
+locale -a | grep -qi '^zh_CN.utf8$' || { echo 'zh_CN.UTF-8 locale is missing' >&2; exit 1; }
+
+# --- Terminal theme and fonts --------------------------------------------
+# The Catppuccin Frappe theme is pinned by commit and checksum; the font ships
+# as the archlinuxcn package ttf-maplemono-nf-cn.
+frappe_sha=a918b23d6a3532aed845cf1eb1a7fe6989d3ab3c6d84756f369f7b08f19bc598
+frappe_url=https://cdn.jsdelivr.net/gh/catppuccin/kitty@43098316202b84d6a71f71aaf8360f102f4d3f1a/themes/frappe.conf
+curl -fL --retry 5 --retry-delay 3 --retry-all-errors --connect-timeout 20 --max-time 120 \
+    -o /tmp/frappe.conf "$frappe_url"
+echo "$frappe_sha  /tmp/frappe.conf" | sha256sum -c -
+install -Dm644 /tmp/frappe.conf /usr/share/kitty/themes/frappe.conf
+rm -f /tmp/frappe.conf
+
+fc-cache -f >/dev/null 2>&1 || true
+maple_family="$(fc-list :family | tr ',' '\n' | sed 's/^ *//; s/ *$//' | grep -x 'Maple Mono NF CN' | head -n 1 || true)"
+[ -n "$maple_family" ] || {
+    echo 'Maple Mono NF CN is not registered with fontconfig' >&2
+    fc-list :family | grep -i maple >&2 || true
+    exit 1
+}
+mkdir -p /etc/xdg/kitty
+sed "s/@MAPLE_FAMILY@/$maple_family/" "$guest/terminal/kitty.conf.in" > /etc/xdg/kitty/kitty.conf
+test -s /etc/xdg/kitty/kitty.conf
+
+# --- fish shell (system-wide) -------------------------------------------
+install -d /etc/fish/conf.d /etc/fish/functions
+install -Dm644 "$guest/terminal/fish/config.fish" /etc/fish/config.fish
+for conf in theme.fish fastfetch.fish mirrors.fish; do
+    install -Dm644 "$guest/terminal/fish/conf.d/$conf" "/etc/fish/conf.d/$conf"
+done
+install -d /usr/share/fish/vendor_functions.d
+fisher_sha=0fb6c81ae3003e95b5671766fa6c25c3597066e29965b7772f6c1b007387356d
+fisher_url=https://cdn.jsdelivr.net/gh/jorgebucaran/fisher@791da644d33d392216f6b1a9b5fc1e470db6d7f2/functions/fisher.fish
+curl -fL --retry 5 --retry-delay 3 --retry-all-errors --connect-timeout 20 --max-time 120 \
+    -o /tmp/fisher.fish "$fisher_url"
+echo "$fisher_sha  /tmp/fisher.fish" | sha256sum -c -
+install -Dm644 /tmp/fisher.fish /usr/share/fish/vendor_functions.d/fisher.fish
+rm -f /tmp/fisher.fish
+
+# --- fastfetch helpers and per-instance home template --------------------
+install -Dm755 "$guest/terminal/ff-shell-stack" /usr/local/bin/ff-shell-stack
+install -Dm755 "$guest/terminal/ff-sdks" /usr/local/bin/ff-sdks
+install -d "$skel/.config"
+cp -a "$guest/home-template/." "$skel/"
+install -Dm644 "$guest/terminal/fastfetch/config.jsonc" "$skel/.config/fastfetch/config.jsonc"
+install -Dm644 "$guest/terminal/fish/tide-apply.fish" "$skel/.config/fish/tide-apply.fish"
+install -Dm644 /usr/share/fish/vendor_functions.d/fisher.fish "$skel/.config/fish/functions/fisher.fish"
+# Kitty reads the system configuration; the per-user copy only pins the theme
+# include so a user edit stays additive.
+install -d "$skel/.config/kitty"
+printf '# Managed by arlinux: system defaults live in /etc/xdg/kitty/kitty.conf\ninclude /etc/xdg/kitty/kitty.conf\n' \
+    > "$skel/.config/kitty/kitty.conf"
+
+# --- Tide prompt ---------------------------------------------------------
+# fisher installs into the template home at build time; the instance home is
+# seeded from it on first boot, so the phone never needs the network.
+HOME="$skel" fish -c 'fisher install ilancosman/tide@v6' >/dev/null 2>&1 || {
+    echo 'ERROR: fisher could not install tide into the home template' >&2; exit 1;
+}
+HOME="$skel" fish "$skel/.config/fish/tide-apply.fish" >/dev/null 2>&1 || {
+    echo 'ERROR: sailing the Tide defaults failed' >&2; exit 1;
+}
+test -s "$skel/.config/fish/fish_variables"
+chmod -R a+rX "$skel"
+
+# --- Nemo integration ----------------------------------------------------
+install -d /usr/share/nemo/actions
+install -Dm644 "$guest/nemo/arlinux-terminal.nemo_action" /usr/share/nemo/actions/arlinux-terminal.nemo_action
+install -Dm755 "$guest/bin/arlinux-terminal" /usr/local/bin/arlinux-terminal
+install -d /etc/xdg
+cat > /etc/xdg/mimeapps.list <<'MIME'
+[Default Applications]
+inode/directory=nemo.desktop
+MIME
+printf 'kitty.desktop\n' > /etc/xdg/xdg-terminals.list
+
+# --- GTK defaults (system-wide) -----------------------------------------
+install -d /etc/gtk-3.0 /etc/gtk-4.0
+cp "$skel/.config/gtk-3.0/settings.ini" /etc/gtk-3.0/settings.ini
+cp "$skel/.config/gtk-4.0/settings.ini" /etc/gtk-4.0/settings.ini
+
+# --- Login-shell defaults for classic Linux users ------------------------
+install -d /etc/skel
+cp -a "$skel/." /etc/skel/
+
+# --- reef (optional bash-compatibility layer for fish) -------------------
+# AUR-only. The build installs it best-effort: a rolling AUR recipe must not
+# be able to break the desktop image, and reef.fish degrades silently when
+# reef is absent. Everything it installs is verified afterwards.
+install -d /tmp/aurlog
+if pacman -S --needed --noconfirm base-devel paru >/tmp/aurlog/paru.log 2>&1; then
+    useradd -m aurbuild 2>/dev/null || true
+    printf 'aurbuild ALL=(ALL) NOPASSWD: ALL\n' > /etc/sudoers.d/aurbuild
+    if sudo -u aurbuild paru -S --noconfirm --needed reef reef-tools >/tmp/aurlog/reef.log 2>&1; then
+        echo '--> [reef] installed from the AUR'
+    else
+        echo 'WARNING: the reef AUR build failed; fish keeps working without the bash-compatibility layer' >&2
+        tail -n 20 /tmp/aurlog/reef.log >&2 || true
+    fi
+    userdel -r aurbuild >/dev/null 2>&1 || true
+    rm -f /etc/sudoers.d/aurbuild
+else
+    echo 'WARNING: paru is unavailable; skipping the optional reef layer' >&2
+fi
+if command -v reef >/dev/null 2>&1; then
+    install -Dm644 "$guest/terminal/fish/conf.d/reef.fish" /etc/fish/conf.d/reef.fish
+    install -Dm644 "$guest/terminal/fish/conf.d/reef.fish" "$skel/.config/fish/conf.d/reef.fish"
+fi
+rm -rf /tmp/aurlog
+echo '--> [desktop] user-land configuration deployed'
