@@ -81,8 +81,9 @@ jobs:
             .arlinux-cache
             build/linux
             build/pipeline
-          key: arlinux-arch-${{ runner.arch }}-${{ hashFiles('distributions/arch/**', 'tools/build/**', 'runtime/tools/**') }}
+          key: arlinux-arch-${{ runner.arch }}-${{ hashFiles('distributions/arch/**', 'tools/build/**', 'runtime/tools/**') }}-${{ github.run_id }}
           restore-keys: |
+            arlinux-arch-${{ runner.arch }}-${{ hashFiles('distributions/arch/**', 'tools/build/**', 'runtime/tools/**') }}-
             arlinux-arch-${{ runner.arch }}-
 
       - name: Fetch the published capture product
@@ -134,6 +135,15 @@ jobs:
             bash ./build.sh rootfs --config "$RUNNER_TEMP/rootfs-config.json" \
             --distribution arch --output "$PWD/build/artifacts/rootfs/arch/default.zip"
 
+      - name: Hand the build outputs back to the runner user
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The package stage runs as root. Only host build-cache files change
+          # owner; guest metadata stays inside snapshot.tar, matching the
+          # upstream component workflow.
+          sudo chown -R "$(id -u):$(id -g)" build .arlinux-cache
+
       - name: Verify the bundle
         shell: bash
         run: |
@@ -151,3 +161,14 @@ jobs:
             build/artifacts/rootfs/arch/default.json
           if-no-files-found: error
           retention-days: 14
+
+      - name: Save the build cache
+        if: ${{ success() }}
+        continue-on-error: true
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: |
+            .arlinux-cache
+            build/linux
+            build/pipeline
+          key: arlinux-arch-${{ runner.arch }}-${{ hashFiles('distributions/arch/**', 'tools/build/**', 'runtime/tools/**') }}-${{ github.run_id }}

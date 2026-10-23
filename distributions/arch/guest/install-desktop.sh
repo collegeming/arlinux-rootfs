@@ -9,6 +9,7 @@ set -eu
 root=/
 guest=/usr/lib/arlinux/guest
 skel=/usr/share/arlinux/skel-home
+install -d /usr/share/arlinux
 
 # --- Chinese locale and Asia/Shanghai time -------------------------------
 sed -i 's/^#\(en_US\.UTF-8 UTF-8\)/\1/' /etc/locale.gen
@@ -40,6 +41,25 @@ maple_family="$(fc-list :family | tr ',' '\n' | sed 's/^ *//; s/ *$//' | grep -x
 mkdir -p /etc/xdg/kitty
 sed "s/@MAPLE_FAMILY@/$maple_family/" "$guest/terminal/kitty.conf.in" > /etc/xdg/kitty/kitty.conf
 test -s /etc/xdg/kitty/kitty.conf
+
+# --- Hyprland control client ---------------------------------------------
+# The compositor runs in Android. Take only the control client from the signed
+# package, without installing the Linux compositor or its DRM backend; this is
+# the pattern the upstream Omarchy distribution uses. Noctalia and the kitty
+# window rules both drive the host compositor through this client.
+if [ ! -x /usr/bin/hyprctl ]; then
+    hyprland_archive="$(pacman -Spdd --print-format '%f' hyprland)"
+    pacman -Sddw --noconfirm hyprland
+    bsdtar -xOf "/var/cache/pacman/pkg/$hyprland_archive" usr/bin/hyprctl > /usr/bin/hyprctl.new
+    chmod 0755 /usr/bin/hyprctl.new
+    mv /usr/bin/hyprctl.new /usr/bin/hyprctl
+    printf '%s\n' "$hyprland_archive" > /usr/share/arlinux/hyprctl-package
+fi
+if ldd /usr/bin/hyprctl 2>/dev/null | grep -q 'not found'; then
+    echo 'ERROR: hyprctl has unresolved libraries:' >&2
+    ldd /usr/bin/hyprctl | grep 'not found' >&2
+    exit 1
+fi
 
 # --- fish shell (system-wide) -------------------------------------------
 install -d /etc/fish/conf.d /etc/fish/functions
