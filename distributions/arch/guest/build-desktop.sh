@@ -55,12 +55,32 @@ if ! grep -q '^\[archlinuxcn\]$' "$root/etc/pacman.conf"; then
     cat "$guest/archlinuxcn.conf" >> "$root/etc/pacman.conf"
 fi
 
+# pacman 7 preflights every transaction against the recorded mount table and
+# matches its cachedir and every target path to a mount point. This disposable
+# chroot lives inside the runner's filesystem, so the namespace mount table
+# describes host paths instead of the chroot's, pacman logs "could not
+# determine cachedir mount point" and then refuses the transaction as "not
+# enough free disk space" even though the disk has >100 GiB free. Record the
+# single mount that is true for every path in this tree; the symlink to
+# /proc/self/mounts is restored before the image is sealed.
+diagnose_mount_table() {
+    echo '--> [diag] mount table (first 20 lines):' >&2
+    head -20 /proc/self/mounts >&2 2>/dev/null || true
+    ls -l /etc/mtab >&2 2>/dev/null || true
+    df -h / >&2 2>/dev/null || true
+}
+rm -f /etc/mtab
+printf 'none / none rw 0 0\n' > /etc/mtab
+
 # Replace the seed's libc before anything else links against it, then restart
 # the package stage at a fresh process boundary (the runner retries on 75).
 runtime_epoch=$root/var/lib/arlinux/runtime-epoch-1
 if [ ! -f "$runtime_epoch" ]; then
     echo 'ARLINUX:Updating the base runtime...'
-    pacman -Syy --needed --noconfirm glibc coreutils bash pacman
+    if ! pacman -Syy --needed --noconfirm glibc coreutils bash pacman; then
+        diagnose_mount_table
+        exit 1
+    fi
     mkdir -p "$(dirname "$runtime_epoch")"
     : > "$runtime_epoch"
     exit 75
@@ -85,10 +105,15 @@ set -- \
     gtk3 gtk4 libnotify nss libxss libxtst libsecret xdg-utils xdg-terminal-exec \
     alsa-plugins libpulse cups libdrm pango cairo jq socat imagemagick \
     bash-completion procps-ng tzdata unzip libarchive tar xz git cinnamon-translations \
-    binutils file perl
+    binutils file perl \
+    libxext libxshmfence libglvnd vulkan-icd-loader libxrandr libxfixes libxrender \
+    libxdamage xcb-util xcb-util-keysyms xcb-util-wm xcb-util-renderutil xcb-util-cursor
 if ! pacman -Q "$@" >/dev/null 2>&1; then
     echo 'ARLINUX:Updating Arch Linux ARM and installing the desktop components...'
-    pacman -Syyu --needed --noconfirm "$@"
+    if ! pacman -Syyu --needed --noconfirm "$@"; then
+        diagnose_mount_table
+        exit 1
+    fi
 fi
 
 # Every package later than this snapshot is build-only scaffolding; the
@@ -149,6 +174,11 @@ cp "$guest/opencode-AGENTS.md" "$root/etc/arlinux/opencode-AGENTS.md"
 # archived, copied and discarded on every build.
 pacman -Scc --noconfirm >/dev/null 2>&1 || true
 rm -rf /var/cache/pacman/pkg/* /var/lib/pacman/sync/* /tmp/ghostty-pkg /tmp/aurlog
+
+# Restore the image's own mount table: devices must see /proc/self/mounts.
+rm -f /etc/mtab
+ln -s ../proc/self/mounts /etc/mtab
+test -L /etc/mtab
 
 # Completion receipt: the seal step verifies these files, not a second
 # inventory of the packages above.
