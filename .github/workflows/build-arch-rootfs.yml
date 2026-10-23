@@ -182,7 +182,10 @@ jobs:
           retention-days: 14
 
       - name: Save the build cache
-        if: ${{ success() }}
+        # Also after a failure: every stage cache is input-keyed and verified
+        # before reuse, so a partially built generation still saves the seed
+        # download, the Mesa build and the package stage for the next attempt.
+        if: ${{ always() }}
         continue-on-error: true
         uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5
         with:
