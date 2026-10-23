@@ -126,7 +126,7 @@ pacman -Qq | sort > /tmp/arlinux-packages-before
 # Remove the build-only toolchain (reef's AUR build, zcode's perl patch, the
 # mirrored agent packages' helpers). Only packages added by this run are
 # touched, so a pre-existing tool never disappears from the seed.
-build_tool_re='^(autoconf|automake|bison|ccache|clang([0-9]+)?|cmake|cpio|debugedit|elfutils|fakeroot|flex|gcc|gdb|gdb-common|gettext|groff|guile|libtool|lld([0-9]+)?|llvm[0-9]+|m4|make|meson|ninja|paru|pkgconf|rust|rustup|sudo|texinfo|which)$'
+build_tool_re='^(autoconf|automake|base-devel|bison|ccache|clang([0-9]+)?|cmake|cpio|debugedit|elfutils|fakeroot|flex|gcc|gdb|gdb-common|gettext|groff|guile|libtool|lld([0-9]+)?|llvm[0-9]+|m4|make|meson|ninja|paru|pkgconf|rust|rustup|sudo|texinfo|which)$'
 # The hard gate covers the compiler and AUR scaffolding only: other build
 # helpers may legitimately remain as dependencies of packages the desktop
 # keeps (python-setuptools for pip, for example), and failing on those would
