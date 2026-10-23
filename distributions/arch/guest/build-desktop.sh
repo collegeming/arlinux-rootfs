@@ -95,7 +95,7 @@ fi
 set -- \
     kitty fish fastfetch neovim nemo gvfs wl-clipboard wtype xclip xdotool \
     fuzzel noctalia quickshell qt6-declarative qt6-svg qt6-wayland qt6-multimedia \
-    qt6-5compat qt6-imageformats inotify-tools hyprutils hyprwire hyprlang \
+    qt6-5compat qt6-imageformats inotify-tools hyprutils hyprwire hyprlang re2 \
     fcitx5 fcitx5-rime fcitx5-gtk fcitx5-qt fcitx5-configtool rime-ice-git \
     ttf-maplemono-nf-cn adobe-source-han-sans-cn-fonts noto-fonts noto-fonts-emoji \
     ttf-dejavu fontconfig \
