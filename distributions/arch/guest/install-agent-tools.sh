@@ -20,7 +20,11 @@ fetch_verified() { # url sha256 destination
 require_aarch64_elf() { # path
     file "$1" | grep -Eq 'ELF 64-bit LSB.*(ARM aarch64|AArch64)'
     readelf -h "$1" | grep -Eq 'Machine:[[:space:]]+AArch64'
-    readelf -l "$1" | grep -Fq 'Requesting program interpreter: /lib/ld-linux-aarch64.so.1'
+    # A statically linked build carries no interpreter; only check the loader
+    # path when the binary is dynamically linked.
+    if readelf -l "$1" | grep -q 'INTERP'; then
+        readelf -l "$1" | grep -Fq 'Requesting program interpreter: /lib/ld-linux-aarch64.so.1'
+    fi
 }
 
 work=$(mktemp -d)

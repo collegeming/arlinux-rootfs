@@ -32,12 +32,17 @@ install -Dm644 /tmp/frappe.conf /usr/share/kitty/themes/frappe.conf
 rm -f /tmp/frappe.conf
 
 fc-cache -f >/dev/null 2>&1 || true
-maple_family="$(fc-list :family | tr ',' '\n' | sed 's/^ *//; s/ *$//' | grep -x 'Maple Mono NF CN' | head -n 1 || true)"
-[ -n "$maple_family" ] || {
-    echo 'Maple Mono NF CN is not registered with fontconfig' >&2
-    fc-list :family | grep -i maple >&2 || true
-    exit 1
-}
+# fc-match resolves the best family for the requested name; a fallback font
+# (DejaVu, Noto, ...) here means the Maple package is missing.
+maple_family="$(fc-match --format='%{family}\n' 'Maple Mono NF CN' 2>/dev/null | head -n 1 || true)"
+case "$maple_family" in
+    *'Maple Mono NF CN'*) ;;
+    *)
+        echo "ERROR: Maple Mono NF CN is not installed (fontconfig resolved: ${maple_family:-none})" >&2
+        fc-list | grep -i maple >&2 || true
+        exit 1
+        ;;
+esac
 mkdir -p /etc/xdg/kitty
 sed "s/@MAPLE_FAMILY@/$maple_family/" "$guest/terminal/kitty.conf.in" > /etc/xdg/kitty/kitty.conf
 test -s /etc/xdg/kitty/kitty.conf

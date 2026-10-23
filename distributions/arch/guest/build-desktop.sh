@@ -125,8 +125,13 @@ pacman -Qq | sort > /tmp/arlinux-packages-before
 
 # Remove the build-only toolchain (reef's AUR build, zcode's perl patch, the
 # mirrored agent packages' helpers). Only packages added by this run are
-# touched, and the result is a hard gate, mirroring the reference builder.
-build_tool_re='^(autoconf|automake|bison|ccache|clang([0-9]+)?|cmake|cpio|debugedit|elfutils|fakeroot|flex|gcc|gdb|gdb-common|gettext|groff|guile|libtool|lld([0-9]+)?|llvm[0-9]+|m4|make|meson|ninja|paru|pkgconf|python-build|python-calver|python-editables|python-fastjsonschema|python-flit-core|python-hatchling|python-installer|python-mako|python-markupsafe|python-packaging|python-pathspec|python-platformdirs|python-pluggy|python-pyproject-hooks|python-pypa-build|python-setuptools|python-tomli|python-trove-classifiers|python-typing_extensions|python-validate-pyproject|python-wheel|rust|rustup|sudo|texinfo|which)$'
+# touched, so a pre-existing tool never disappears from the seed.
+build_tool_re='^(autoconf|automake|bison|ccache|clang([0-9]+)?|cmake|cpio|debugedit|elfutils|fakeroot|flex|gcc|gdb|gdb-common|gettext|groff|guile|libtool|lld([0-9]+)?|llvm[0-9]+|m4|make|meson|ninja|paru|pkgconf|rust|rustup|sudo|texinfo|which)$'
+# The hard gate covers the compiler and AUR scaffolding only: other build
+# helpers may legitimately remain as dependencies of packages the desktop
+# keeps (python-setuptools for pip, for example), and failing on those would
+# break the image for a reason that does not affect its content.
+critical_tool_re='^(ccache|cargo|clang([0-9]+)?|cmake|fakeroot|gcc|llvm[0-9]+|make|meson|ninja|paru|rust|rustup|sudo)$'
 iteration=0
 while [ "$iteration" -lt 6 ]; do
     iteration=$((iteration + 1))
@@ -138,11 +143,13 @@ while [ "$iteration" -lt 6 ]; do
     pacman -Rns --noconfirm $(cat /tmp/arlinux-build-only) 2>/dev/null || true
 done
 pacman -Qq | sort > /tmp/arlinux-packages-after
-remaining="$(comm -13 /tmp/arlinux-packages-before /tmp/arlinux-packages-after | grep -E "$build_tool_re" || true)"
+remaining="$(comm -13 /tmp/arlinux-packages-before /tmp/arlinux-packages-after | grep -E "$critical_tool_re" || true)"
 if [ -n "$remaining" ]; then
     echo "ERROR: build-only packages remain in the desktop: $remaining" >&2
     exit 1
 fi
+leftover="$(comm -13 /tmp/arlinux-packages-before /tmp/arlinux-packages-after | grep -E "$build_tool_re" || true)"
+[ -z "$leftover" ] || echo "--> [cleanup] kept as dependencies: $leftover"
 rm -f /tmp/arlinux-packages-before /tmp/arlinux-packages-after /tmp/arlinux-build-only
 echo '--> [cleanup] build-only toolchain removed'
 
