@@ -162,14 +162,9 @@ if ! python3 -c 'import dogtail, edge_tts' >/dev/null 2>&1; then
 fi
 python3 -c 'import dogtail, edge_tts, pyatspi'
 
-# PulseAudio clients connect to the host socket; the Android app owns audio.
-mkdir -p "$root/etc/pulse/client.conf.d" "$root/etc/alsa/conf.d"
-printf 'default-server = unix:%s/runtime/pulse-native\nautospawn = no\nenable-shm = no\n' \
-    "$BIONICX_FILES" > "$root/etc/pulse/client.conf.d/arlinux.conf"
-cat > "$root/etc/alsa/conf.d/99-arlinux-pulse.conf" <<'ALSA'
-pcm.!default { type pulse }
-ctl.!default { type pulse }
-ALSA
+# The PulseAudio client and ALSA defaults depend on the runtime socket path
+# (BIONICX_FILES), which only exists on the device, so guest/first-boot.sh
+# writes them per instance.
 
 # Distribution note for the shared OpenCode integration (TUI and Desktop both
 # read it through the Guest Tools launcher).
