@@ -29,7 +29,11 @@ jobs:
     timeout-minutes: 350
     env:
       GH_TOKEN: ${{ github.token }}
-      ARLINUX_CACHE_DIR: ${{ github.workspace }}/.arlinux-cache
+      # Deliberately short: the seed stage starts GnuPG against a homedir under
+      # this cache, and gpg-agent fails ("General error") when the resulting
+      # UNIX socket path exceeds the 108-byte sun_path limit. A deep workspace
+      # path is long enough to break it; /opt/al keeps the margin.
+      ARLINUX_CACHE_DIR: /opt/al
     steps:
       - name: Check out this fork with the GPU submodules
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
@@ -37,6 +41,13 @@ jobs:
           submodules: true
           fetch-depth: 1
           persist-credentials: false
+
+      - name: Prepare the short build cache
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo mkdir -p /opt/al
+          sudo chown -R "$(id -u):$(id -g)" /opt/al
 
       - name: Install the build host
         shell: bash
@@ -78,7 +89,7 @@ jobs:
         uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
         with:
           path: |
-            .arlinux-cache
+            /opt/al
             build/linux
             build/pipeline
           key: arlinux-arch-${{ runner.arch }}-${{ hashFiles('distributions/arch/**', 'tools/build/**', 'runtime/tools/**') }}-${{ github.run_id }}
@@ -142,7 +153,7 @@ jobs:
           # The package stage runs as root. Only host build-cache files change
           # owner; guest metadata stays inside snapshot.tar, matching the
           # upstream component workflow.
-          sudo chown -R "$(id -u):$(id -g)" build .arlinux-cache
+          sudo chown -R "$(id -u):$(id -g)" build /opt/al
 
       - name: Verify the bundle
         shell: bash
@@ -168,7 +179,7 @@ jobs:
         uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5
         with:
           path: |
-            .arlinux-cache
+            /opt/al
             build/linux
             build/pipeline
           key: arlinux-arch-${{ runner.arch }}-${{ hashFiles('distributions/arch/**', 'tools/build/**', 'runtime/tools/**') }}-${{ github.run_id }}
