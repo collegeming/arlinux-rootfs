@@ -1,0 +1,60 @@
+#!/bin/sh
+# Print the session diagnostics that a device report needs. The desktop
+# supervisor appends every shell exit to the same log, so this one screen shows
+# both the current state and what happened before. Run it as
+# `kitty --hold -e arlinux-diag` to keep the output on screen.
+set -u
+
+diag_dir="${XDG_CACHE_HOME:-$HOME/.cache}/arlinux"
+diag_log="$diag_dir/desktop-diag.log"
+noctalia_log="${XDG_RUNTIME_DIR:-/tmp}/noctalia.log"
+status_log="${XDG_RUNTIME_DIR:-/tmp}/arlinux-desktop-status.log"
+
+last_lines() { # file lines
+    [ -s "$1" ] || return 0
+    printf '\n--- %s (tail %s) ---\n' "$1" "$2"
+    tail -n "$2" "$1" 2>/dev/null
+}
+
+printf '== ARLinux desktop diagnostics %s ==\n' "$(date -Is)"
+printf 'distribution: %s\n' "$(cat /usr/share/arlinux/offline-distribution 2>/dev/null || echo '?')"
+printf 'noctalia: %s\n' "$(pacman -Q noctalia 2>/dev/null || echo 'not installed')"
+printf 'compositor: %s\n' "${HYPRLAND_INSTANCE_SIGNATURE:-not found}"
+
+printf '\n--- hyprctl monitors ---\n'
+hyprctl -j monitors 2>/dev/null | python3 -c '
+import json, sys
+try:
+    monitors = json.load(sys.stdin)
+except Exception as error:
+    print("unavailable:", error)
+    raise SystemExit
+for monitor in monitors:
+    print("%s %sx%s@%.0f scale=%s ws=%s" % (
+        monitor.get("name"), monitor.get("width"), monitor.get("height"),
+        monitor.get("refreshRate", 0), monitor.get("scale"),
+        (monitor.get("activeWorkspace") or {}).get("name")))
+' 2>/dev/null || echo 'hyprctl unavailable'
+
+printf '\n--- windows ---\n'
+hyprctl -j clients 2>/dev/null | python3 -c '
+import json, sys
+try:
+    clients = json.load(sys.stdin)
+except Exception as error:
+    print("unavailable:", error)
+    raise SystemExit
+print("count:", len(clients))
+for client in clients:
+    print("  %s | %s | ws=%s" % (client.get("class"), str(client.get("title"))[:60],
+                                 (client.get("workspace") or {}).get("name")))
+' 2>/dev/null || echo 'hyprctl unavailable'
+
+printf '\n--- input method ---\n'
+ibus engine 2>/dev/null || echo 'ibus not ready'
+pgrep -a ibus-wayland 2>/dev/null || echo 'ibus-wayland not running'
+pgrep -a hosted-ime 2>/dev/null || true
+
+last_lines "$diag_log" 60
+last_lines "$status_log" 40
+last_lines "$noctalia_log" 40

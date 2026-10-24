@@ -1,0 +1,7 @@
+#!/bin/sh
+# Open the framework's touch-first app drawer.
+#
+# The drawer is a single-shot GtkApplication: it quits as soon as it launches
+# anything, so the right-edge double-tap that activates it only works while an
+# instance is alive. Starting it through this entry always works again.
+exec python3 /usr/lib/arlinux/guest/yibu-launcher.py "$@"

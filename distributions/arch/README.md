@@ -67,6 +67,25 @@ Firefox 工具链，镜像不采用），入口为 `/usr/bin/zen-browser`，桌�
 运行时用路径映射而非内核命名空间做隔离（`docs/RUNTIME-PROTOCOL.md` 的 Security boundary），只依赖
 Android 应用沙箱作为边界。
 
+## 点按 / 触摸操作
+
+实例没有物理键盘，桌面操作以点按为主。镜像自带一份触摸优先的 Noctalia 布局
+（`guest/desktop/noctalia-arlinux.toml`，会话启动时写入 `$XDG_CONFIG_HOME/noctalia/00-arlinux.toml`；
+Noctalia 按字母序合并配置目录，用户自己的 `*.toml` 在其后加载，因此用户设置优先）：
+
+| 操作 | 点按方式 |
+| --- | --- |
+| 启动应用（等价 super+空格） | 顶栏最左侧启动器图标打开应用网格；底部 dock 的固定图标点一下直接启动 |
+| 切换应用（等价 alt+tab） | 顶栏中间的 taskbar 点窗口图标；或点"切换窗口"按钮打开窗口切换面板 |
+| 关闭应用（等价 super+Q） | 点"关闭当前窗口"按钮（`hyprctl dispatch killactive`）；taskbar 图标的中键关闭在触屏上需要双指轻点 |
+| 打开终端（等价 super+T） | 点"终端"按钮 |
+| 打开框架应用抽屉（Apps） | 点"应用抽屉"按钮（`guest/bin/arlinux-apps`） |
+| 会话诊断 | 点"桌面诊断"按钮，在 kitty 中查看合成器状态、窗口列表、输入法与历史退出记录 |
+
+宿主右边缘竖条的手势与发行版无关：轻点=手机键盘，双击=应用抽屉，长按=AI 语音；其余区域两指轻点=右键，两指滑动=滚动。竖条的"双击打开 Apps"只在抽屉进程还活着时生效——那个抽屉启动任意应用后会自行退出，所以镜像同时提供了上面的应用抽屉按钮。
+
+`guest/bin/arlinux-dock` 提供 nwg-dock-hyprland 作为替代 dock：它经 `hyprctl` IPC 取窗口列表，不依赖 shell 的窗口集成，把配置里的 `[dock] enabled` 关掉后运行即可对比。
+
 ## 软件与包管理
 
 - `paru` 随镜像保留，是用户安装 AUR 软件用的助手；`base-devel` 不随镜像，paru 按包解析构建依赖。
@@ -97,3 +116,4 @@ sudo -E env PATH="$PATH" HOME="$HOME" ARLINUX_CACHE_DIR="$HOME/.cache/arlinux" \
 - 固定下载（Catppuccin 主题、fisher、kimi-code、ZCode、Zen Browser）在 URL 旁记录 `sha256`；升级版本时两处同改，且 `guest/install-agent-tools.sh` 的 ZCode 补丁校验要对照 AUR `post_install` 重新核对、Zen 的桌面项与图标路径要对照 AUR `zen-browser-bin` 重新核对。
 - `guest/build-desktop.sh` 先对包列表拍快照，再删除快照之后新增且命中构建工具清单的包，仍有残留则构建失败——镜像内不出现编译器与 AUR 脚手架。
 - 设备验证（导入、首启、合成器 IPC、输入、音频）不在托管构建内；工作流变绿不能替代真机检查。
+- 桌面外壳由 `guest/desktop.sh` 监督：每次退出都连同合成器状态写入 `$HOME/.cache/arlinux/desktop-diag.log`，并按下一次重启的等待时间退避，不会因连续崩溃而结束会话。

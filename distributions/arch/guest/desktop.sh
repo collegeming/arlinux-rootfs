@@ -88,13 +88,52 @@ fi
 # Export the resolved session state for launchers that rejoin this session.
 export -p > "$XDG_RUNTIME_DIR/arlinux-session.env" 2>/dev/null || true
 
-# Supervise the desktop shell. A single `exec noctalia` turns any shell exit
-# (crash, low-memory kill, or a host teardown of just the shell) into a
-# permanently black surface with no way back. Restart it instead, keep the
-# current log, and record every exit status for diagnosis. The rapid-restart
-# guard stops a crash loop from draining the battery.
+# Touch-first shell layout. Noctalia merges every *.toml in its config
+# directory alphabetically, so the image's file loads first and the user's own
+# files (config.toml, …) still win.
+install -d "$XDG_CONFIG_HOME/noctalia"
+install -Dm644 /usr/share/arlinux/noctalia/00-arlinux.toml "$XDG_CONFIG_HOME/noctalia/00-arlinux.toml"
+
 log="$XDG_RUNTIME_DIR/noctalia.log"
 status_log="$XDG_RUNTIME_DIR/arlinux-desktop-status.log"
+diag_dir="$XDG_CACHE_HOME/arlinux"
+diag_log="$diag_dir/desktop-diag.log"
+mkdir -p "$diag_dir"
+printf '%s session start: %s, %s\n' "$(date -Is)" \
+    "$(pacman -Q noctalia 2>/dev/null || echo 'noctalia unknown')" \
+    "$(hyprctl -j monitors 2>/dev/null | jq -c '[.[] | {name, width, height, refreshRate, scale}]' 2>/dev/null || echo 'monitors unknown')" \
+    >> "$diag_log" 2>/dev/null || true
+
+# The host re-applies its own monitor rule when Android changes the display
+# refresh rate, which resets the output scale to 1.0. Re-check once the shell
+# is up, re-apply the 125% rule, and keep the evidence in the diagnostics log.
+(
+    sleep 15
+    current="$(hyprctl -j monitors 2>/dev/null | jq -r '.[0].scale' 2>/dev/null || true)"
+    if [ -n "${current:-}" ] && [ "$current" != "1.25" ] && [ "$current" != "null" ]; then
+        hyprctl keyword monitor "${monitor_name},preferred,auto,1.25" >/dev/null 2>&1 || true
+        printf '%s scale was %s; re-applied 1.25\n' "$(date -Is)" "$current" >> "$diag_log"
+    fi
+) &
+
+# Supervise the desktop shell. The shell is the session's only window-manager
+# surface, so it is never left dead: every exit is recorded with its status,
+# its runtime and the compositor state at that moment, and the shell is
+# restarted with a growing pause instead of ending the session. Exiting here is
+# what a device shows as "the desktop died and stayed black".
+record_exit() { # status started ended
+    local status="$1" started="$2" ended="$3" uptime
+    uptime=$((ended - started))
+    {
+        printf '%s noctalia exited status=%s after=%ss\n' "$(date -Is)" "$status" "$uptime"
+        printf '  compositor: %s\n' "${HYPRLAND_INSTANCE_SIGNATURE:-none}"
+        hyprctl -j monitors 2>/dev/null | jq -c '[.[] | {name, width, height, refreshRate, scale}]' 2>/dev/null | sed 's/^/  monitors: /'
+        hyprctl -j clients 2>/dev/null | jq -c 'length' 2>/dev/null | sed 's/^/  windows: /'
+        ibus engine 2>/dev/null | sed 's/^/  ibus engine: /'
+        tail -n 60 "$log" 2>/dev/null | sed 's/^/  log: /'
+    } >> "$diag_log" 2>/dev/null || true
+}
+
 attempt=0
 while :; do
     : > "$log"
@@ -113,14 +152,15 @@ while :; do
             "$(date -Is)" "$status" "$((ended - started))"
         tail -n 60 "$log"
     } >> "$status_log" 2>/dev/null || true
+    record_exit "$status" "$started" "$ended"
     if [ $((ended - started)) -ge 30 ]; then
         attempt=0
     else
         attempt=$((attempt + 1))
     fi
-    if [ "$attempt" -ge 5 ]; then
-        echo "[arlinux] noctalia exited ${attempt} times in a row; giving up" >&2
-        exit 1
-    fi
-    sleep 2
+    # Back off so a crash loop cannot spin, but keep the session alive: the
+    # diagnostics button on the bar shows the recorded exits.
+    delay=$((attempt * 3))
+    [ "$delay" -gt 30 ] && delay=30
+    sleep "$delay"
 done

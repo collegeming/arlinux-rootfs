@@ -128,6 +128,16 @@ inode/directory=nemo.desktop
 MIME
 printf 'kitty.desktop\n' > /etc/xdg/xdg-terminals.list
 
+# --- Touch-first session helpers ----------------------------------------
+# The tap targets on the Noctalia bar call these by path. The framework ships
+# the "Apps" desktop entry (arlinux-apps.desktop) with the guest tools, so the
+# drawer stays reachable from the dock and the launcher as well.
+install -Dm755 "$guest/bin/arlinux-apps" /usr/local/bin/arlinux-apps
+install -Dm755 "$guest/bin/arlinux-diag" /usr/local/bin/arlinux-diag
+install -Dm755 "$guest/bin/arlinux-dock" /usr/local/bin/arlinux-dock
+install -d /usr/share/arlinux/noctalia
+install -Dm644 "$guest/desktop/noctalia-arlinux.toml" /usr/share/arlinux/noctalia/00-arlinux.toml
+
 # --- GTK defaults (system-wide) -----------------------------------------
 install -d /etc/gtk-3.0 /etc/gtk-4.0
 cp "$skel/.config/gtk-3.0/settings.ini" /etc/gtk-3.0/settings.ini

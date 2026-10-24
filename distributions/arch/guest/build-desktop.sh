@@ -94,7 +94,8 @@ fi
 # clients, Qt/Quickshell stack, input method, fonts, files and AI agents.
 set -- \
     kitty fish fastfetch neovim nemo gvfs wl-clipboard wtype xclip xdotool \
-    fuzzel noctalia quickshell qt6-declarative qt6-svg qt6-wayland qt6-multimedia \
+    fuzzel noctalia quickshell nwg-dock-hyprland nwg-drawer \
+    qt6-declarative qt6-svg qt6-wayland qt6-multimedia \
     qt6-5compat qt6-imageformats inotify-tools hyprutils hyprwire hyprlang re2 \
     fcitx5 fcitx5-rime fcitx5-gtk fcitx5-qt fcitx5-configtool rime-ice-git \
     ttf-maplemono-nf-cn adobe-source-han-sans-cn-fonts noto-fonts noto-fonts-emoji \
@@ -196,6 +197,11 @@ test -x /usr/bin/opencode
 test -x /usr/bin/kimi
 test -x /usr/bin/zcode
 test -x /usr/bin/zen-browser
+test -x /usr/bin/nwg-dock-hyprland
+test -x /usr/bin/nwg-drawer
+test -x /usr/local/bin/arlinux-apps
+test -x /usr/local/bin/arlinux-diag
+test -s /usr/share/arlinux/noctalia/00-arlinux.toml
 pacman -Q deepseek-harness >/dev/null
 pacman -Q paru >/dev/null
 # Zen Browser links libraries the desktop set provides; the cleanup above runs

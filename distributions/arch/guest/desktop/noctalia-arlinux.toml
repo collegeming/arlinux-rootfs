@@ -1,0 +1,95 @@
+# ARLinux · 点按/触摸优先的 Noctalia 布局。
+#
+# desktop.sh 每次会话把它写入 $HOME/.config/noctalia/00-arlinux.toml：配置目录按
+# 字母序合并，用户自己的 *.toml 在其后加载，因此用户设置始终优先。
+#
+# 设计前提：本实例没有物理键盘，操作全部通过点按完成；宿主在屏幕右边缘另有一
+# 条手势竖条（轻点=键盘，双击=应用抽屉，长按=AI 语音）。
+
+[bar.default]
+position           = "top"
+thickness          = 48
+margin_ends        = 8
+padding            = 10
+widget_spacing     = 10
+background_opacity = 0.92
+start              = ["launcher", "apps", "term", "close", "switch", "diag"]
+center             = ["taskbar"]
+end                = ["clock", "volume", "battery", "control-center"]
+
+[shell.launcher]
+# 应用启动器：图标网格 + 分类，适合手指点选。
+layout     = "full"
+app_grid   = true
+categories = true
+width      = 1000
+
+[dock]
+# 底部 dock 放置常用应用：点图标启动/切换，右键菜单固定或取消固定。
+enabled           = true
+position          = "bottom"
+icon_size         = 56
+item_spacing      = 10
+margin_edge       = 10
+margin_ends       = 24
+show_running      = true
+reserve_space     = true
+show_dots         = true
+launcher_position = "start"
+launcher_icon     = "grid-dots"
+pinned            = ["kitty", "zen-browser", "zcode", "arlinux-apps", "nemo", "opencode"]
+
+# —— 点一下就能完成的操作 ——
+
+[widget.launcher]
+type = "launcher"
+
+[widget.taskbar]
+# 点图标=切换窗口，两指轻点（右键）=固定/取消固定菜单。
+type         = "taskbar"
+show_running = true
+pinned       = ["kitty.desktop", "zen.desktop", "zcode.desktop", "arlinux-apps.desktop"]
+
+[widget.apps]
+# ARLinux 应用抽屉（框架提供的触摸网格；双击右边缘竖条是同一个程序）。
+type    = "custom_button"
+glyph   = "apps"
+tooltip = "应用抽屉（Apps）"
+
+[widget.apps.actions]
+left = "exec /usr/local/bin/arlinux-apps"
+
+[widget.term]
+type    = "custom_button"
+glyph   = "terminal-2"
+tooltip = "终端"
+
+[widget.term.actions]
+left = "exec kitty"
+
+[widget.close]
+# 与 super+Q 等价：关闭当前窗口。宿主合成器不画窗口装饰，所以关闭入口放在这里。
+type    = "custom_button"
+glyph   = "x"
+tooltip = "关闭当前窗口"
+
+[widget.close.actions]
+left = "exec hyprctl dispatch killactive"
+
+[widget.switch]
+# 与 alt+tab 等价：Noctalia 的窗口切换面板。
+type    = "custom_button"
+glyph   = "layout-grid"
+tooltip = "切换窗口"
+
+[widget.switch.actions]
+left = "window-switcher"
+
+[widget.diag]
+# 会话诊断（合成器状态、窗口列表、输入法、退出记录），排障时点它。
+type    = "custom_button"
+glyph   = "stethoscope"
+tooltip = "桌面诊断"
+
+[widget.diag.actions]
+left = "exec kitty --hold -e /usr/local/bin/arlinux-diag"
