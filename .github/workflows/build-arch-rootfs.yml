@@ -208,8 +208,13 @@ jobs:
         run: |
           set -euo pipefail
           if gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" --silent 2>/dev/null; then
-            echo "release $TAG already exists" >&2
-            exit 1
+            # A cancelled predecessor may already have published this exact tag.
+            # The bundle was verified above either way, so publishing is
+            # idempotent instead of a failure.
+            echo "release $TAG already exists; keeping it" >&2
+            gh release view "$TAG" --repo "$GITHUB_REPOSITORY" \
+              --json assets,url --jq '.url, (.assets[] | "\(.name)\t\(.size)")'
+            exit 0
           fi
           bundle=build/artifacts/rootfs/arch/default.zip
           digest=$(sha256sum "$bundle" | cut -d' ' -f1)
