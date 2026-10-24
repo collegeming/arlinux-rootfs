@@ -1,17 +1,12 @@
-Arch Linux desktop (ARLinux)
+Arch Linux 桌面（ARLinux）
 
-The Android application supplies the Wayland compositor, input, audio and
-device access. This Linux image supplies the desktop userspace on top:
+Wayland 合成器、输入、音频与设备访问由 Android 应用提供；本 Linux 镜像在上层提供桌面用户空间：
 
-- Noctalia shell (bar and panels) with the fuzzel launcher.
-- kitty terminal with the Catppuccin Frappe theme, the bundled Maple Mono NF
-  CN font and a fish + Tide prompt.
-- Chinese locale (zh_CN.UTF-8), Asia/Shanghai time, Source Han Sans CN and
-  Noto emoji fonts.
-- Rime input (fcitx5) is installed; the Android-hosted IBus keyboard is the
-  default input path. See the distribution README for the switch.
-- Nemo file manager with "Open in Terminal".
-- AI coding agents: kimi-code (kimi) and ZCode desktop, plus deepseek-harness.
+- Noctalia 桌面外壳（状态栏与面板）与 fuzzel 启动器。
+- kitty 终端：Catppuccin Frappe 主题、内置 Maple Mono NF CN 字体、fish + Tide 提示符。
+- 中文环境：zh_CN.UTF-8、Asia/Shanghai 时区、思源黑体 CN、Noto emoji。
+- 已装 Rime 输入法（fcitx5）；默认输入通路是 Android 宿主的 IBus 键盘，切换方式见发行版 README。
+- Nemo 文件管理器，带"在终端中打开"。
+- AI 工具：opencode、kimi-code（kimi）、ZCode 桌面版、deepseek-harness。
 
-Install more packages with pacman as usual; the offline bundle already
-contains every desktop package.
+装包用 pacman 即可；离线包内已包含全部桌面组件。

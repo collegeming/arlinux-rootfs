@@ -31,6 +31,18 @@ own GitHub repository: [Debian](https://github.com/taowen/arlinux-debian/release
 asset, not GitHub's automatic source-code archive. The Android APK is released
 separately; a rootfs bundle is imported after installing it.
 
+## 本仓库的 Arch 发行版
+
+本仓库自带 Arch Linux 配方：`distributions/arch` 是仓库内配方，不指向上游
+`taowen/arlinux-arch` 子模块。它构建名为 **Arch Linux（Noctalia 桌面）** 的 rootfs 包，
+发布在[本仓库 Releases](https://github.com/collegeming/arlinux-rootfs/releases)，
+资产名 `arlinux-arch-noctalia-default.zip`。上面的 Debian、Omarchy、KDE Plasma、LXQt
+仍是上游发行版，与本仓库的 Arch 包相互独立。
+
+该发行版声明 `hyprland` 合成器提示：ARLinux 的 Wayland 合成器由 Android 宿主提供，
+清单只接受 `anlabwc` 与 `hyprland` 两种提示，guest 内不装 Linux 合成器；桌面外壳为
+Noctalia。组件清单、桌面栈说明与构建方式见 [distributions/arch/README.md](distributions/arch/README.md)。
+
 ## Applications
 
 In a running ARM64 desktop, `arlinux-steam` downloads and starts Valve's native

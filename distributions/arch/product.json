@@ -1,6 +1,6 @@
 {
   "$schema": "../../schemas/product.schema.json",
-  "name": "Arch Linux (Niri-style Desktop)",
+  "name": "Arch Linux（Noctalia 桌面）",
   "compositor": "hyprland",
   "libraryDirectories": [
     "usr/lib"

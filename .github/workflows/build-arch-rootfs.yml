@@ -220,23 +220,24 @@ jobs:
           digest=$(sha256sum "$bundle" | cut -d' ' -f1)
           printf '%s  %s\n' "$digest" "$(basename "$bundle")" > "$RUNNER_TEMP/SHA256SUMS"
           cat > "$RUNNER_TEMP/notes.md" <<EOF
-          Arch Linux (Niri-style desktop) rootfs bundle for ARLinux.
+          Arch Linux（Noctalia 桌面）rootfs 包，供 ARLinux App 导入。
 
-          Import **arlinux-arch-niri-default.zip** in the ARLinux app (this file,
-          not the repository source archive and not any wrapper zip).
+          在本 App 中导入 **arlinux-arch-noctalia-default.zip**，即本页这个压缩包；
+          不要下载本页自动生成的源码归档，也不要导入任何外层包装 zip。
 
+          - 桌面栈：Noctalia 桌面外壳，运行在 Android 宿主提供的 Hyprland 合成器上；guest 内不含 Linux 合成器。
           - SHA-256: \`$digest\`
-          - Builder commit: \`$GITHUB_SHA\`
-          - Workflow run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID
-          - Pipeline receipt: \`default.json\`
-          - Distribution notes and prerequisites: \`distributions/arch/README.md\`
+          - 构建提交: \`$GITHUB_SHA\`
+          - 工作流运行: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID
+          - 构建回执: \`default.json\`
+          - 发行版说明与设备前提: \`distributions/arch/README.md\`
           EOF
           gh release create "$TAG" \
             --repo "$GITHUB_REPOSITORY" \
-            --title "Arch Niri desktop rootfs $TAG" \
+            --title "Arch Linux（Noctalia 桌面）rootfs $TAG" \
             --notes-file "$RUNNER_TEMP/notes.md" \
             --latest=false \
-            "$bundle#arlinux-arch-niri-default.zip" \
+            "$bundle#arlinux-arch-noctalia-default.zip" \
             build/artifacts/rootfs/arch/default.json \
             "$RUNNER_TEMP/SHA256SUMS"
           gh release view "$TAG" --repo "$GITHUB_REPOSITORY" \

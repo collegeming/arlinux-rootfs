@@ -82,25 +82,24 @@ jobs:
         run: |
           set -euo pipefail
           cat > "$RUNNER_TEMP/notes.md" <<EOF
-          Arch Linux (Niri-style desktop) rootfs bundle for ARLinux.
+          Arch Linux（Noctalia 桌面）rootfs 包，供 ARLinux App 导入。
 
-          - Download **arlinux-arch-niri-default.zip** and import that file in the
-            ARLinux app (not this page's source archive, and not any wrapper zip).
+          在本 App 中导入 **arlinux-arch-noctalia-default.zip**，即本页这个压缩包；
+          不要下载本页自动生成的源码归档，也不要导入任何外层包装 zip。
+
           - SHA-256: \`$(cut -d' ' -f1 release-assets/SHA256SUMS)\`
-          - Built from the verified artifact of run ${{ inputs.run_id }}; the
-            pipeline receipt is attached as \`default.json\`.
-          - Device prerequisites and behaviour are described in
-            \`distributions/arch/README.md\` in this repository.
+          - 由工作流运行 ${{ inputs.run_id }} 校验过的产物原样重发；构建回执见 \`default.json\`。
+          - 发行版说明与设备前提见仓库内 \`distributions/arch/README.md\`。
 
-          The bundle contains the desktop userspace only: the Android host supplies
-          the compositor, input, audio and device access.
+          包内只有桌面侧用户空间：合成器、输入、音频与设备访问由 Android 宿主提供；
+          桌面外壳 Noctalia 运行在宿主的 Hyprland 合成器上。
           EOF
           gh release create "${{ inputs.tag }}" \
             --repo "$GITHUB_REPOSITORY" \
-            --title "Arch Niri desktop rootfs ${{ inputs.tag }}" \
+            --title "Arch Linux（Noctalia 桌面）rootfs ${{ inputs.tag }}" \
             --notes-file "$RUNNER_TEMP/notes.md" \
             --latest=false \
-            "release-assets/default.zip#arlinux-arch-niri-default.zip" \
+            "release-assets/default.zip#arlinux-arch-noctalia-default.zip" \
             "release-assets/default.json" \
             "release-assets/SHA256SUMS"
           gh release view "${{ inputs.tag }}" --repo "$GITHUB_REPOSITORY" \

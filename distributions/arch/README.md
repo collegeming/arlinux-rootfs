@@ -1,78 +1,65 @@
-# Arch Linux (Niri-style desktop) for ARLinux
+# Arch Linux（Noctalia 桌面）for ARLinux
 
-This distribution replaces the upstream `taowen/arlinux-arch` recipe in this
-fork. It keeps the same contract (protocol 4 bundle, framework-owned GPU
-overlays, offline desktop) and changes the desktop content:
+本仓库的内置配方 `distributions/arch` 构建 Arch Linux ARM rootfs 包，桌面外壳为 Noctalia。
+预构建包发布在[本仓库 Releases](https://github.com/collegeming/arlinux-rootfs/releases)，
+下载其中的 `arlinux-arch-noctalia-default.zip` 导入 ARLinux App（不要下载 GitHub 自动生成的源码归档）。
 
-- Noctalia shell + fuzzel launcher, kitty only terminal, fish + Tide prompt.
-- Chinese locale (zh_CN.UTF-8), Asia/Shanghai time, Source Han Sans CN and
-  Noto emoji fonts, Rime input (fcitx5 + rime-ice) next to the Android-hosted
-  IBus engine.
-- Nemo file manager with an "Open in Terminal" action.
-- AI agents: opencode (TUI 2.x from `extra`), kimi-code, ZCode desktop and
-  deepseek-harness.
+包契约与上游一致：protocol 4 bundle、框架提供的 GPU overlay、离线桌面。包内包含：
 
-Package sources are the Arch Linux ARM repositories (TUNA mirror first) plus
-archlinuxcn for `rime-ice-git`, `ttf-maplemono-nf-cn` and `deepseek-harness`.
-`tools/seed.sh` copies the pinned `archlinuxcn-keyring` into the seed and
-`tools/post-seed.sh` imports the trust root, so no repository ever needs a
-`SigLevel = Never` bootstrap.
+- Noctalia 桌面外壳与 fuzzel 启动器，kitty 为唯一终端，fish + Tide 提示符。
+- 中文环境：`zh_CN.UTF-8`、Asia/Shanghai 时区、思源黑体 CN、Noto emoji。
+- Nemo 文件管理器，附"在终端中打开"动作。
+- AI 工具：opencode（TUI，取 `extra/opencode`）、kimi-code、ZCode 桌面版、deepseek-harness。
 
-## Why there is no niri compositor here
+包源为 Arch Linux ARM 仓库（TUNA 镜像优先）与 archlinuxcn，后者提供 `rime-ice-git`、
+`ttf-maplemono-nf-cn`、`deepseek-harness`。`tools/seed.sh` 把固定版本的 `archlinuxcn-keyring`
+放进 seed，`tools/post-seed.sh` 导入信任根，任何仓库都不需要 `SigLevel = Never`。
 
-ARLinux is not a container runtime: the Android host supplies the Wayland
-compositor (anlabwc or anhyprland) and the bundle manifest only accepts those
-two hints (`schemas/product.schema.json`, `tools/bundle.py`). A second Linux
-compositor cannot run inside the guest. This recipe therefore declares the
-`hyprland` hint and provides the same desktop experience on top of it:
+## 桌面栈
 
-- Noctalia runs as the shell; it drives the host compositor over its IPC
-  socket, which `guest/desktop.sh` discovers before starting it.
-- `hyprctl` is extracted from the signed `hyprland` package without installing
-  the Linux compositor or its DRM backend, the same pattern the upstream
-  Omarchy distribution uses.
-- The kitty transparency/blur rule that the reference desktop implemented with
-  a niri window rule is applied as a runtime `hyprctl` window rule.
+ARLinux 的 Wayland 合成器运行在 Android 宿主进程内，不在 Linux 里。bundle 清单的
+`compositor` 字段只接受 `anlabwc` 与 `hyprland` 两个取值（`schemas/product.schema.json`、
+`tools/bundle.py`），guest 内不能再运行第二个合成器。本发行版因此声明 `hyprland` 提示，
+由 Noctalia 直接驱动宿主合成器：
 
-If a future host embeds niri, only `product.json` and `guest/desktop.sh` need
-to change.
+- `guest/desktop.sh` 先通过宿主合成器的 IPC socket 找到会话，再启动 Noctalia。Noctalia 退出后自动重启，30 秒内连续退出 5 次才放弃；每次退出状态写入 `$XDG_RUNTIME_DIR/arlinux-desktop-status.log`。
+- `hyprctl` 取自签名包 `hyprland`（`guest/install-desktop.sh`），不安装 Linux 合成器本体及其 DRM 后端，只补它链接的共享库 `hyprlang`、`hyprutils`、`hyprwire`、`re2`；安装后以 `ldd` 校验无缺失库。
+- 界面缩放 125%、kitty 的透明度与模糊规则都以 `hyprctl` 运行时规则下发。
 
-## Terminal look
+## 终端与外观
 
-kitty with the Catppuccin Frappe theme, the Maple Mono NF CN font, 0.85
-background opacity (blur is compositor-side), cursor trail, and fish with the
-Tide v6 prompt, fastfetch, and the reference desktop's `ff-shell-stack` /
-`ff-sdks` helpers. The `reef` bash-compatibility layer is AUR-only and is
-installed best-effort: a rolling AUR recipe must never break the image, and
-`conf.d/reef.fish` degrades silently when reef is absent.
+kitty 使用 Catppuccin Frappe 主题、Maple Mono NF CN 字体、0.85 背景不透明度（模糊由合成器完成）
+与光标拖尾；fish 配 Tide v6 提示符、fastfetch 与参考项目的 `ff-shell-stack`、`ff-sdks`。
+`reef` 仅在 AUR 提供，按尽力安装处理：`conf.d/reef.fish` 在 reef 缺失时静默降级，
+不让一个滚动更新的 AUR 配方拖垮镜像。
 
-## Input method
+## 输入法
 
-The Android-hosted IBus keyboard is the default path (the framework publishes
-the session bus and engine in `accessibility-session.sh`). The local
-fcitx5 + Rime-Ice stack is installed, configured with Rime as the default
-group, and can be enabled per instance:
+手机输入法通过框架提供的 IBus 通路进入 guest：`accessibility-session.sh` 发布会话总线并注册
+宿主引擎 `arlinux-hosted`；`guest/desktop.sh` 启动 `ibus-wayland`（Arch 路径为 `/usr/lib/ibus/`）
+并选中该引擎，Wayland 客户端（kitty、ZCode 等）由此收到提交文本。
+
+guest 内另装了 fcitx5 + Rime-Ice 作为本地输入法，按实例启用：
 
 ```sh
 printf 'fcitx5\n' > ~/.config/arlinux/input-method
-# restart the desktop session
+# 重启桌面会话
 ```
 
-## AI agents
+## AI 工具
 
-| Tool | Source | Notes |
+| 工具 | 来源 | 说明 |
 | --- | --- | --- |
-| opencode (TUI) | `extra/opencode` | The 2.x CLI/TUI built from `packages/cli`; the rolling repo version is used. |
-| kimi-code | mirrors AUR `kimi-code-bin` 2.3.1 | Pinned upstream tarball + LICENSE, converted to an AArch64 ELF check. |
-| ZCode | mirrors AUR `zcode` 3.16.2 | Pinned official arm64 `.deb`; the AUR `post_install` JS patch is applied and gated. |
-| deepseek-harness | `archlinuxcn` | Regular package install. |
-| OpenCode Desktop | framework Guest Tools | Deliberately not baked in: `tools/seal-rootfs.py` rejects `/opt/OpenCode` in the package snapshot and the shared launcher installs the current Desktop build on first use. |
+| opencode (TUI) | `extra/opencode` | 由 `packages/cli` 构建的 2.x CLI/TUI，随滚动源更新。 |
+| kimi-code | 对应 AUR `kimi-code-bin` 2.3.1 | 固定上游 tarball + LICENSE，安装时校验 AArch64 ELF。 |
+| ZCode | 对应 AUR `zcode` 3.16.2 | 固定官方 arm64 `.deb`；AUR `post_install` 的 JS 补丁被打上并校验。 |
+| deepseek-harness | `archlinuxcn` | 常规包安装。 |
+| OpenCode Desktop | 框架 Guest Tools | 故意不预置：`tools/seal-rootfs.py` 拒绝包快照中的 `/opt/OpenCode`，共享启动器在首次使用时安装当前 Desktop 版本。 |
 
-ZCode's Electron sandbox cannot work under the Android app UID, so its desktop
-entry runs with `--no-sandbox` (the same trade-off the framework documents for
-other sandboxed loaders).
+ZCode 的 Electron 沙箱在 Android App UID 下无法工作，桌面入口因此带 `--no-sandbox`
+（与框架对其它沙箱加载器的处理一致）。
 
-## Build
+## 构建
 
 ```sh
 echo '{"format":1,"framework":"'"$PWD"'"}' > /tmp/rootfs-config.json
@@ -83,23 +70,15 @@ sudo -E env PATH="$PATH" HOME="$HOME" ARLINUX_CACHE_DIR="$HOME/.cache/arlinux" \
 ./build.sh verify build/artifacts/rootfs/arch/default.zip
 ```
 
-`.github/workflows/build-arch-rootfs.yml` runs the same commands on
-`ubuntu-24.04-arm`: it installs the cross toolchain, fetches the published
-`vulkan-capture` product from `taowen/gfxreconstruct`'s debug release, builds
-the distribution and uploads the verified bundle.
+`.github/workflows/build-arch-rootfs.yml` 在 `ubuntu-24.04-arm` 上执行同一组命令：安装交叉工具链、
+拉取 `taowen/gfxreconstruct` debug release 中发布的 `vulkan-capture` 产物、构建发行版并上传校验过的 bundle。
+`publish_tag` 非空时，同一步把 bundle 发布为本仓库的 Release（`default.zip`、`default.json`、`SHA256SUMS`）。
 
-## Maintenance
+## 维护
 
-- `rootfs.lock.json` pins the Arch Linux ARM tarball. Refresh the digest when
-  the mirror regenerates `ArchLinuxARM-aarch64-latest.tar.gz`.
-- The archlinuxcn keyring package in `tools/seed.sh` carries its own version
-  and digest; refresh both together.
-- Pinned downloads (Catppuccin theme, fisher, kimi-code, ZCode) record
-  `sha256` next to their URL. Version bumps must update both, and the ZCode
-  patch gate in `guest/install-agent-tools.sh` must be re-checked against the
-  AUR `post_install` hook.
-- `guest/build-desktop.sh` removes every package installed after its baseline
-  snapshot that matches the build-tool list and fails the build if anything
-  remains, so the sealed image ships no compiler or AUR scaffolding.
-- Device testing (import, first boot, compositor IPC, input, audio) is not part
-  of the hosted build; a green workflow does not replace a real device check.
+- 目录名与发行版 id 保持 `arch`：框架按该 id 处理 Mesa 覆盖层、seal 检查与 keyring 引导。
+- `rootfs.lock.json` 固定 Arch Linux ARM 的 tarball 摘要；镜像重新生成 `ArchLinuxARM-aarch64-latest.tar.gz` 时刷新。
+- `tools/seed.sh` 中 archlinuxcn keyring 包的版本与摘要成对更新。
+- 固定下载（Catppuccin 主题、fisher、kimi-code、ZCode）在 URL 旁记录 `sha256`；升级版本时两处同改，且 `guest/install-agent-tools.sh` 的 ZCode 补丁校验要对照 AUR `post_install` 重新核对。
+- `guest/build-desktop.sh` 先对包列表拍快照，再删除快照之后新增且命中构建工具清单的包，仍有残留则构建失败——镜像内不出现编译器与 AUR 脚手架。
+- 设备验证（导入、首启、合成器 IPC、输入、音频）不在托管构建内；工作流变绿不能替代真机检查。
