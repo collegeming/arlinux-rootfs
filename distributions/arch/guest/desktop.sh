@@ -59,6 +59,35 @@ fi
 # Export the resolved session state for launchers that rejoin this session.
 export -p > "$XDG_RUNTIME_DIR/arlinux-session.env" 2>/dev/null || true
 
-# Foreground process of the profile. Noctalia owns the bar and panels; the
-# session ends when it exits, and the host can relaunch it.
-exec noctalia
+# Supervise the desktop shell. A single `exec noctalia` turns any shell exit
+# (crash, low-memory kill, or a host teardown of just the shell) into a
+# permanently black surface with no way back. Restart it instead, keep the
+# current log, and record every exit status for diagnosis. The rapid-restart
+# guard stops a crash loop from draining the battery.
+log="$XDG_RUNTIME_DIR/noctalia.log"
+status_log="$XDG_RUNTIME_DIR/arlinux-desktop-status.log"
+attempt=0
+while :; do
+    : > "$log"
+    started=$(date +%s)
+    noctalia >>"$log" 2>&1 &
+    shell_pid=$!
+    status=0
+    wait "$shell_pid" || status=$?
+    ended=$(date +%s)
+    {
+        printf '%s noctalia exited status=%s after %ss\n' \
+            "$(date -Is)" "$status" "$((ended - started))"
+        tail -n 60 "$log"
+    } >> "$status_log" 2>/dev/null || true
+    if [ $((ended - started)) -ge 30 ]; then
+        attempt=0
+    else
+        attempt=$((attempt + 1))
+    fi
+    if [ "$attempt" -ge 5 ]; then
+        echo "[arlinux] noctalia exited ${attempt} times in a row; giving up" >&2
+        exit 1
+    fi
+    sleep 2
+done
