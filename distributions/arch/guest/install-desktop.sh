@@ -137,6 +137,27 @@ cp "$skel/.config/gtk-4.0/settings.ini" /etc/gtk-4.0/settings.ini
 install -d /etc/skel
 cp -a "$skel/." /etc/skel/
 
+# --- paru (user-facing AUR helper) ---------------------------------------
+# paru stays in the sealed image: it is the helper the user installs AUR
+# software with. base-devel does not stay, so paru resolves each package's
+# build dependencies on demand instead of the image carrying a toolchain.
+if ! pacman -Q paru >/dev/null 2>&1; then
+    echo 'ARLINUX:Installing paru (AUR helper)...'
+    if ! pacman -S --needed --noconfirm paru; then
+        echo 'ERROR: paru is unavailable in the configured repositories' >&2
+        exit 1
+    fi
+fi
+# Mirrors and repositories come from pacman.conf: the ALARM mirrorlist
+# (TUNA first) and the archlinuxcn repository, both of which paru reuses.
+cat > /etc/paru.conf <<'PARUCONF'
+[options]
+# 设备空间有限：构建完成后删除只用于构建的依赖与构建目录。
+RemoveMake
+CleanAfter
+PARUCONF
+command -v paru >/dev/null
+
 # --- reef (optional bash-compatibility layer for fish) -------------------
 # AUR-only. The build installs it best-effort: a rolling AUR recipe must not
 # be able to break the desktop image, and reef.fish degrades silently when

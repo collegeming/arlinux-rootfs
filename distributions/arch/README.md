@@ -9,6 +9,7 @@
 - Noctalia 桌面外壳与 fuzzel 启动器，kitty 为唯一终端，fish + Tide 提示符。
 - 中文环境：`zh_CN.UTF-8`、Asia/Shanghai 时区、思源黑体 CN、Noto emoji。
 - Nemo 文件管理器，附"在终端中打开"动作。
+- Zen Browser 浏览器与 `paru` AUR 助手。
 - AI 工具：opencode（TUI，取 `extra/opencode`）、kimi-code、ZCode 桌面版、deepseek-harness。
 
 包源为 Arch Linux ARM 仓库（TUNA 镜像优先）与 archlinuxcn，后者提供 `rime-ice-git`、
@@ -47,7 +48,6 @@ printf 'fcitx5\n' > ~/.config/arlinux/input-method
 ```
 
 ## AI 工具
-
 | 工具 | 来源 | 说明 |
 | --- | --- | --- |
 | opencode (TUI) | `extra/opencode` | 由 `packages/cli` 构建的 2.x CLI/TUI，随滚动源更新。 |
@@ -58,6 +58,21 @@ printf 'fcitx5\n' > ~/.config/arlinux/input-method
 
 ZCode 的 Electron 沙箱在 Android App UID 下无法工作，桌面入口因此带 `--no-sandbox`
 （与框架对其它沙箱加载器的处理一致）。
+
+## 浏览器
+
+Zen Browser 取自官方 aarch64 发布包（版本固定，与 AUR `zen-browser-bin` 同源；AUR 的源码构建需要整套
+Firefox 工具链，镜像不采用），入口为 `/usr/bin/zen-browser`，桌面项 `zen.desktop`。
+`distribution/policies.json` 关闭应用自更新，升级随镜像进行。它与其它自带沙箱的加载器一样关闭自身沙箱：
+运行时用路径映射而非内核命名空间做隔离（`docs/RUNTIME-PROTOCOL.md` 的 Security boundary），只依赖
+Android 应用沙箱作为边界。
+
+## 软件与包管理
+
+- `paru` 随镜像保留，是用户安装 AUR 软件用的助手；`base-devel` 不随镜像，paru 按包解析构建依赖。
+- `/etc/paru.conf` 设 `RemoveMake` 与 `CleanAfter`：构建完成后删除只用于构建的依赖与构建目录。
+- 仓库与镜像沿用 `pacman.conf` 的设置，paru 同样生效：Arch Linux ARM 的 TUNA 优先 mirrorlist（`etc/pacman.d/mirrorlist`）与 archlinuxcn 仓库（`etc/pacman.d/archlinuxcn.conf`）。
+- 提权使用实例内由框架提供的 `sudo`（bundle 载荷 `bionicx/sudo`，用法为 `sudo 命令 [参数]`），镜像内不装 Arch 的 `sudo` 包。
 
 ## 构建
 
@@ -79,6 +94,6 @@ sudo -E env PATH="$PATH" HOME="$HOME" ARLINUX_CACHE_DIR="$HOME/.cache/arlinux" \
 - 目录名与发行版 id 保持 `arch`：框架按该 id 处理 Mesa 覆盖层、seal 检查与 keyring 引导。
 - `rootfs.lock.json` 固定 Arch Linux ARM 的 tarball 摘要；镜像重新生成 `ArchLinuxARM-aarch64-latest.tar.gz` 时刷新。
 - `tools/seed.sh` 中 archlinuxcn keyring 包的版本与摘要成对更新。
-- 固定下载（Catppuccin 主题、fisher、kimi-code、ZCode）在 URL 旁记录 `sha256`；升级版本时两处同改，且 `guest/install-agent-tools.sh` 的 ZCode 补丁校验要对照 AUR `post_install` 重新核对。
+- 固定下载（Catppuccin 主题、fisher、kimi-code、ZCode、Zen Browser）在 URL 旁记录 `sha256`；升级版本时两处同改，且 `guest/install-agent-tools.sh` 的 ZCode 补丁校验要对照 AUR `post_install` 重新核对、Zen 的桌面项与图标路径要对照 AUR `zen-browser-bin` 重新核对。
 - `guest/build-desktop.sh` 先对包列表拍快照，再删除快照之后新增且命中构建工具清单的包，仍有残留则构建失败——镜像内不出现编译器与 AUR 脚手架。
 - 设备验证（导入、首启、合成器 IPC、输入、音频）不在托管构建内；工作流变绿不能替代真机检查。

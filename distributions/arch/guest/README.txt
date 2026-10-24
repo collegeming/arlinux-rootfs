@@ -7,6 +7,7 @@ Wayland 合成器、输入、音频与设备访问由 Android 应用提供；本
 - 中文环境：zh_CN.UTF-8、Asia/Shanghai 时区、思源黑体 CN、Noto emoji。
 - 已装 Rime 输入法（fcitx5）；默认输入通路是 Android 宿主的 IBus 键盘，切换方式见发行版 README。
 - Nemo 文件管理器，带"在终端中打开"。
+- Zen Browser 浏览器；AUR 助手 paru 已随镜像提供（装包用 `sudo paru -S <包名>`）。
 - AI 工具：opencode、kimi-code（kimi）、ZCode 桌面版、deepseek-harness。
 
-装包用 pacman 即可；离线包内已包含全部桌面组件。
+装包用 pacman 或 paru 即可；离线包内已包含全部桌面组件。

@@ -100,7 +100,7 @@ set -- \
     ttf-maplemono-nf-cn adobe-source-han-sans-cn-fonts noto-fonts noto-fonts-emoji \
     ttf-dejavu fontconfig \
     deepseek-harness opencode ripgrep \
-    curl ca-certificates xorg-xrdb dbus at-spi2-core ibus python-dbus python-atspi \
+    curl ca-certificates xorg-xrdb dbus dbus-glib at-spi2-core ibus python-dbus python-atspi \
     python-gobject python-pip mpg123 patch wayland libx11 libxcb libxxf86vm \
     gtk3 gtk4 libnotify nss libxss libxtst libsecret xdg-utils xdg-terminal-exec \
     alsa-plugins libpulse cups libdrm pango cairo jq socat imagemagick \
@@ -125,13 +125,14 @@ pacman -Qq | sort > /tmp/arlinux-packages-before
 
 # Remove the build-only toolchain (reef's AUR build, zcode's perl patch, the
 # mirrored agent packages' helpers). Only packages added by this run are
-# touched, so a pre-existing tool never disappears from the seed.
-build_tool_re='^(autoconf|automake|base-devel|bison|ccache|clang([0-9]+)?|cmake|cpio|debugedit|elfutils|fakeroot|flex|gcc|gdb|gdb-common|gettext|groff|guile|libtool|lld([0-9]+)?|llvm[0-9]+|m4|make|meson|ninja|paru|pkgconf|rust|rustup|sudo|texinfo|which)$'
+# touched, so a pre-existing tool never disappears from the seed. paru is not
+# in this list: the AUR helper is content, not scaffolding.
+build_tool_re='^(autoconf|automake|base-devel|bison|ccache|clang([0-9]+)?|cmake|cpio|debugedit|elfutils|fakeroot|flex|gcc|gdb|gdb-common|gettext|groff|guile|libtool|lld([0-9]+)?|llvm[0-9]+|m4|make|meson|ninja|pkgconf|rust|rustup|sudo|texinfo|which)$'
 # The hard gate covers the compiler and AUR scaffolding only: other build
 # helpers may legitimately remain as dependencies of packages the desktop
 # keeps (python-setuptools for pip, for example), and failing on those would
 # break the image for a reason that does not affect its content.
-critical_tool_re='^(ccache|cargo|clang([0-9]+)?|cmake|fakeroot|gcc|llvm[0-9]+|make|meson|ninja|paru|rust|rustup|sudo)$'
+critical_tool_re='^(ccache|cargo|clang([0-9]+)?|cmake|fakeroot|gcc|llvm[0-9]+|make|meson|ninja|rust|rustup|sudo)$'
 iteration=0
 while [ "$iteration" -lt 6 ]; do
     iteration=$((iteration + 1))
@@ -194,7 +195,16 @@ test -x /usr/bin/hyprctl
 test -x /usr/bin/opencode
 test -x /usr/bin/kimi
 test -x /usr/bin/zcode
+test -x /usr/bin/zen-browser
 pacman -Q deepseek-harness >/dev/null
+pacman -Q paru >/dev/null
+# Zen Browser links libraries the desktop set provides; the cleanup above runs
+# first, so this gate sees the sealed package set rather than the build chroot.
+if ldd /opt/zen-browser/zen-bin 2>/dev/null | grep -q 'not found'; then
+    echo 'ERROR: Zen Browser has unresolved libraries:' >&2
+    ldd /opt/zen-browser/zen-bin | grep 'not found' >&2
+    exit 1
+fi
 mkdir -p /usr/share/arlinux
 pacman -Q | awk '{print $1 "\t" $2}' > /usr/share/arlinux/packages.tsv
 printf '%s\n' 'arch' > /usr/share/arlinux/offline-distribution

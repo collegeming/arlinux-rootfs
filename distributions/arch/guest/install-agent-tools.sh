@@ -1,8 +1,9 @@
 #!/bin/sh
-# Pinned AI coding agents for the offline desktop.
+# Pinned third-party desktop applications for the offline image.
 #
-#   kimi-code  mirrors AUR kimi-code-bin 2.3.1  -> /usr/bin/kimi
-#   zcode      mirrors AUR zcode 3.16.2          -> /opt/ZCode + /usr/bin/zcode
+#   kimi-code    mirrors AUR kimi-code-bin 2.3.1    -> /usr/bin/kimi
+#   zcode        mirrors AUR zcode 3.16.2           -> /opt/ZCode + /usr/bin/zcode
+#   zen-browser  mirrors AUR zen-browser-bin 1.23.4b -> /opt/zen-browser + /usr/bin/zen-browser
 #
 # opencode (the 2.x coding agent) and deepseek-harness are regular Arch
 # packages and are installed from the repositories in build-desktop.sh. The
@@ -114,4 +115,72 @@ if [ -f "$bundle" ]; then
     }
 fi
 test -x /usr/bin/zcode
-echo '--> [agents] kimi-code and ZCode installed'
+
+# --- zen-browser (AUR zen-browser-bin 1.23.4b payload) --------------------
+# The AUR recipe repacks this same aarch64 release asset; building it from
+# source would need the whole Firefox toolchain, so the pinned upstream
+# tarball is used directly. Layout, desktop entry, icons and policies follow
+# that recipe; its declared dependencies are installed by build-desktop.sh.
+zen_ver=1.23.4b
+zen_url="https://github.com/zen-browser/desktop/releases/download/${zen_ver}/zen.linux-aarch64.tar.xz"
+zen_sha=75142191e0ad3380e485a39a3737b502e69cf30368fbb516b80e7e6f0b0f3a5f
+echo "ARLINUX:Installing Zen Browser ${zen_ver}..."
+fetch_verified "$zen_url" "$zen_sha" "$work/zen.tar.xz"
+mkdir -p "$work/zen"
+tar -xJf "$work/zen.tar.xz" -C "$work/zen" --no-same-owner --no-same-permissions
+test -e "$work/zen/zen/zen-bin"
+require_aarch64_elf "$(readlink -f "$work/zen/zen/zen-bin")"
+install -d /opt
+rm -rf /opt/zen-browser
+cp -a "$work/zen/zen" /opt/zen-browser
+# Native Wayland client: the guest has no X server of its own and the host
+# compositor is the only display path. Firefox-family content sandboxes need
+# kernel namespaces the runtime does not provide (it maps paths instead of
+# creating mounts or namespaces), which is why the other bundled loaders run
+# with their own sandbox off as well (ZCode's Electron, GLYCIN consumers); the
+# Android app sandbox stays the security boundary of an instance.
+cat > /usr/bin/zen-browser <<'WRAPPER'
+#!/bin/sh
+export MOZ_ENABLE_WAYLAND=1 GDK_BACKEND=wayland
+export MOZ_DISABLE_CONTENT_SANDBOX=1 MOZ_DISABLE_GMP_SANDBOX=1
+exec /opt/zen-browser/zen-bin "$@"
+WRAPPER
+chmod 0755 /usr/bin/zen-browser
+for size in 16 32 48 64 128; do
+    icon="/opt/zen-browser/browser/chrome/icons/default/default${size}.png"
+    if [ -f "$icon" ]; then
+        install -d "/usr/share/icons/hicolor/${size}x${size}/apps"
+        ln -sfn "$icon" "/usr/share/icons/hicolor/${size}x${size}/apps/zen-browser.png"
+    fi
+done
+if [ -f /usr/lib/libnssckbi.so ]; then
+    ln -sfn /usr/lib/libnssckbi.so /opt/zen-browser/libnssckbi.so
+fi
+if [ -f /opt/zen-browser/LICENSE ]; then
+    install -Dm644 /opt/zen-browser/LICENSE /usr/share/licenses/zen-browser/LICENSE
+fi
+# Updates stay owned by the image, the same policy the AUR recipe ships.
+install -d /opt/zen-browser/distribution
+cat > /opt/zen-browser/distribution/policies.json <<'POLICIES'
+{
+  "policies": {
+    "DisableAppUpdate": true,
+    "DefaultSerialGuardSetting": 3
+  }
+}
+POLICIES
+cat > /usr/share/applications/zen.desktop <<'DESKTOP'
+[Desktop Entry]
+Name=Zen Browser
+Comment=隐私优先的 Firefox 系浏览器
+Exec=/usr/bin/zen-browser %u
+Icon=zen-browser
+Type=Application
+Categories=Network;WebBrowser;
+MimeType=text/html;text/xml;application/xhtml+xml;application/xml;x-scheme-handler/http;x-scheme-handler/https;
+StartupWMClass=zen
+StartupNotify=true
+Terminal=false
+DESKTOP
+test -x /usr/bin/zen-browser
+echo '--> [agents] kimi-code, ZCode and Zen Browser installed'
