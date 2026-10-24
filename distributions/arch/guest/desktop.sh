@@ -70,11 +70,27 @@ fi
 # start; selecting it again is idempotent and covers a restarted shell.
 ibus engine arlinux-hosted >>"$XDG_RUNTIME_DIR/ibus-wayland.log" 2>&1 || true
 
-# Kitty translucency needs compositor-side blur, matching the reference
-# desktop's terminal look. Runtime keywords only; the host configuration
-# itself is never rewritten, and failures are non-fatal on other builds.
-hyprctl keyword windowrulev2 "opacity 0.90 0.85,class:^(kitty)$" >/dev/null 2>&1 || true
-hyprctl keyword windowrulev2 "blur,class:^(kitty)$" >/dev/null 2>&1 || true
+# Host decorations. `hyprctl keyword` is not implemented on the host compositor,
+# so runtime rules never applied; it reads its own Lua config
+# (files/anhyprland/hyprland.lua) and applies changes on `hyprctl reload`. With
+# no blur support its window shadows and the 1px window border render as hard
+# black frames around every window — the same artefact the shell surfaces show
+# from their shadows — so append the corrective block once per session and
+# reload. A missing or read-only file is not fatal on other builds.
+host_lua="${BIONICX_FILES:-/data/user/0/io.taowen.arlinux/files}/anhyprland/hyprland.lua"
+if [ -w "$host_lua" ] && ! grep -q 'ARLinux: host decorations' "$host_lua" 2>/dev/null; then
+    cat >> "$host_lua" <<'LUA'
+
+-- ARLinux: host decorations. This compositor has no blur, so window shadows
+-- render as opaque black frames and the 1px border as a light line while the
+-- desktop shell is dark; the shell draws its own surfaces.
+hl.config({
+    decoration = { shadow = { enabled = false } },
+    general = { border_size = 0 },
+})
+LUA
+    hyprctl reload >/dev/null 2>&1 || true
+fi
 
 # Input method: the Android-hosted IBus keyboard is the default path (the
 # session bus and engine come from accessibility-session.sh). Dropping

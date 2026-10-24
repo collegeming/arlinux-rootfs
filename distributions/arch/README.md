@@ -25,7 +25,7 @@ ARLinux 的 Wayland 合成器运行在 Android 宿主进程内，不在 Linux �
 
 - `guest/desktop.sh` 先通过宿主合成器的 IPC socket 找到会话，再启动 Noctalia。Noctalia 退出后自动重启，30 秒内连续退出 5 次才放弃；每次退出状态写入 `$XDG_RUNTIME_DIR/arlinux-desktop-status.log`。
 - `hyprctl` 取自签名包 `hyprland`（`guest/install-desktop.sh`），不安装 Linux 合成器本体及其 DRM 后端，只补它链接的共享库 `hyprlang`、`hyprutils`、`hyprwire`、`re2`；安装后以 `ldd` 校验无缺失库。
-- 界面缩放 125%、kitty 的透明度与模糊规则都以 `hyprctl` 运行时规则下发。
+- 宿主合成器只实现只读的配置查询与派发器，`hyprctl keyword` 会被拒绝；它能读自己的 Lua 配置并在 `hyprctl reload` 时应用，镜像对窗口装饰的调整走这条路（见"为什么没有阴影"）。
 
 ## 终端与外观
 
@@ -39,6 +39,28 @@ kitty 使用 Catppuccin Frappe 主题、Maple Mono NF CN 字体、0.85 背景不
 `$XDG_CONFIG_HOME/noctalia/palettes/`），`[theme]` 以 `source = "custom"` 引用它，
 不需要联网、与 kitty 的配色一致（暗色模式）。`[plugins] auto_update = "none"` 关掉插件源的
 后台 git 更新，Noctalia 启动后不再常驻 `git fetch` 进程。
+
+### 为什么没有阴影：宿主合成器不画模糊
+
+宿主合成器没有模糊能力，任何"投影"都会被渲染成一块**不透明黑框**。表现是 dock、顶栏、
+控制中心/启动器这类 Noctalia 面板，以及每个窗口四周都围着一圈黑边。镜像从两侧一起关掉：
+
+| 位置 | 开关 |
+| --- | --- |
+| shell 全局阴影 | `[shell.shadow] alpha = 0.0` |
+| 弹层/下拉 | `[shell] popup_shadows = false` |
+| 面板（吸附与悬浮） | `[shell.panel] shadow = false`、`transparency_mode = "solid"` |
+| 顶栏 | `[bar.default] shadow = false`、`contact_shadow = false`、`compositor_blur = false` |
+| dock | `[dock] shadow = false`、`border_width = 0` |
+| 窗口本身 | desktop.sh 写宿主 Lua 配置：`decoration.shadow.enabled = false`、`general.border_size = 0` |
+
+窗口那一侧属于宿主：合成器只读它自己的 Lua 配置
+（`<app files>/anhyprland/hyprland.lua`，`hl.config{...}` 写法），且**不实现 `hyprctl keyword`**
+—— 所以旧版本里用 `hyprctl keyword windowrulev2` 下发的 kitty 透明度/模糊规则在这台宿主上
+一直是空操作，kitty 的 0.85 背景不透明度来自它自己的 `background_opacity`。`desktop.sh`
+每次会话检查该 Lua 文件里有没有 ARLinux 的标记段，缺了就追加并 `hyprctl reload`（文件只读或
+缺失时静默跳过，不影响其它宿主）。Noctalia 面板的 `shadow` 标志在**表面创建时**读取，改完配置
+如果面板没有重新创建，需要重启一次 shell 才生效。
 
 ## 输入法
 
