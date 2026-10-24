@@ -28,7 +28,7 @@ jobs:
   publish:
     name: Publish ${{ inputs.tag }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 60
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
@@ -47,13 +47,22 @@ jobs:
           import json, hashlib, pathlib, zipfile
           bundle = pathlib.Path('release-assets/default.zip')
           receipt = json.loads(pathlib.Path('release-assets/default.json').read_text())
-          digest = hashlib.sha256(bundle.read_bytes()).hexdigest()
+
+          def sha256_stream(stream):
+              digest = hashlib.sha256()
+              for block in iter(lambda: stream.read(1 << 20), b''):
+                  digest.update(block)
+              return digest.hexdigest()
+
+          with bundle.open('rb') as stream:
+              digest = sha256_stream(stream)
           assert digest == receipt['desktopSha256'], 'bundle differs from its receipt'
           with zipfile.ZipFile(bundle) as archive:
               manifest = json.loads(archive.read('manifest.json'))
-          for name, expected in manifest['files'].items():
-              actual = hashlib.sha256(archive.read(name)).hexdigest()
-              assert actual == expected, f'payload checksum mismatch: {name}'
+              for name, expected in manifest['files'].items():
+                  with archive.open(name) as member:
+                      actual = sha256_stream(member)
+                  assert actual == expected, f'payload checksum mismatch: {name}'
           print('bundle verified:', digest, manifest['distributionId'], manifest['compositor'])
           PY
           sha256sum release-assets/default.zip > release-assets/SHA256SUMS
