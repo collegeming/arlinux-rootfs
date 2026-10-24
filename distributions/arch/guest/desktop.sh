@@ -98,6 +98,11 @@ install -Dm644 /usr/share/arlinux/noctalia/00-arlinux.toml "$XDG_CONFIG_HOME/noc
 install -d "$XDG_CONFIG_HOME/noctalia/palettes"
 install -Dm644 "/usr/share/arlinux/noctalia/palettes/Catppuccin Frappe.json" \
     "$XDG_CONFIG_HOME/noctalia/palettes/Catppuccin Frappe.json"
+# The framework's Apps entry uses an Adwaita symbolic icon that renders as a
+# dark glyph on the dock; this entry (same stem, user data dir) replaces it
+# with the colored grid icon from the image.
+install -d "$XDG_DATA_HOME/applications"
+install -Dm644 /usr/share/arlinux/arlinux-apps.desktop "$XDG_DATA_HOME/applications/arlinux-apps.desktop"
 
 log="$XDG_RUNTIME_DIR/noctalia.log"
 status_log="$XDG_RUNTIME_DIR/arlinux-desktop-status.log"

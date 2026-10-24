@@ -145,6 +145,14 @@ install -Dm644 "$guest/desktop/noctalia-arlinux.toml" /usr/share/arlinux/noctali
 install -d /usr/share/arlinux/noctalia/palettes
 install -Dm644 "$guest/desktop/palettes/catppuccin-frappe.json" \
     "/usr/share/arlinux/noctalia/palettes/Catppuccin Frappe.json"
+# The framework's Apps entry points at an Adwaita *symbolic* icon, which the
+# dock renders as a dark gray glyph with no contrast. Ship a colored grid icon
+# plus a matching desktop entry; desktop.sh copies the entry into the user data
+# dir each session, where the same entry stem wins over the framework's file.
+install -Dm644 "$guest/desktop/icons/arlinux-apps.svg" \
+    /usr/share/icons/hicolor/scalable/apps/arlinux-apps.svg
+install -Dm644 "$guest/desktop/applications/arlinux-apps.desktop" \
+    /usr/share/arlinux/arlinux-apps.desktop
 
 # --- Debug / automation channel (loopback only) --------------------------
 # There is no physical keyboard and the app UI cannot run shell commands, so
@@ -153,6 +161,8 @@ install -Dm644 "$guest/desktop/palettes/catppuccin-frappe.json" \
 # shell (client side: guest/debug/README.md).
 install -Dm644 "$guest/debug/sshd_arlinux.conf" /etc/ssh/sshd_arlinux.conf
 install -Dm755 "$guest/debug/arlinux-guest-env" /usr/local/bin/arlinux-guest-env
+# 诊断工具，默认不启用（启用方式与还原方式见 guest/debug/README.md）。
+install -Dm755 "$guest/debug/noctalia-waitid.py" /usr/local/lib/arlinux/noctalia-waitid.py
 
 # --- GTK defaults (system-wide) -----------------------------------------
 install -d /etc/gtk-3.0 /etc/gtk-4.0
