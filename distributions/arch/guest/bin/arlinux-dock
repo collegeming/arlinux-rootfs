@@ -1,13 +1,12 @@
 #!/bin/sh
-# Start nwg-dock-hyprland, the alternative touch dock.
+# Start nwg-dock-hyprland, the dock that builds its window list from the host
+# compositor's IPC instead of the shell's window integration. The image starts
+# it next to the Noctalia dock so both can be compared on the device.
 #
-# Noctalia ships its own dock, enabled in 00-arlinux.toml. This helper exists
-# for the comparison: it draws a dock from hyprctl IPC instead of the shell,
-# so it also works when the shell cannot list windows. Run it with the
-# Noctalia dock disabled ([dock] enabled = false).
-set -u
-
+# The launcher button keeps the default command (`nwg-drawer`); the resident
+# app grid that desktop.sh starts is toggled by that second invocation.
+# Options: bottom edge, 56 px icons, no exclusive zone (the Noctalia dock
+# already reserves space), margins that keep the rounded screen corners clear.
 exec nwg-dock-hyprland \
     -p bottom -a start -i 56 -w 10 -mb 10 -ml 24 -mr 24 \
-    -c "nwg-drawer -d -c 6 -s 56 -r" \
     "$@"
