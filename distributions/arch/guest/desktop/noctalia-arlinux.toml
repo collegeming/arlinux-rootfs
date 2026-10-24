@@ -30,6 +30,21 @@ auto_update = "none"
 [shell]
 # 预置镜像不需要首启向导（它面向键盘操作）。
 setup_wizard_enabled = false
+# 宿主合成器不实现模糊，Noctalia 的投影会渲染成不透明黑框（dock、顶栏、面板、
+# 弹层都一样），所以全关：这里管弹层/下拉，[shell.shadow] 把全局阴影透明度
+# 归零，[shell.panel] 与 [bar.default] 各自再显式关一次。窗口一侧的黑框来自
+# 宿主自己的窗口装饰，由 desktop.sh 写宿主 Lua 配置关掉。
+popup_shadows = false
+
+[shell.shadow]
+# 全局阴影（dock/顶栏/面板共用），0 = 不渲染。
+alpha = 0.0
+
+[shell.panel]
+# 悬浮/吸附面板（控制中心、启动器等）：不投阴影、不透明（无模糊时 glass
+# 只会把面板调得更浑浊）。
+shadow            = false
+transparency_mode = "solid"
 
 [shell.launcher]
 # 应用启动器：图标网格，打开即进入全部应用视图。
@@ -53,6 +68,11 @@ margin_ends        = 10
 background_opacity = 0.94
 # 触屏没有 hover，关掉悬停提示。
 show_tooltip       = false
+# 不投全局阴影（宿主不画模糊，阴影就是一圈不透明黑框）；与面板相接处的渐变
+# 阴影（contact_shadow）也一并关掉；栏自己也不申请合成器模糊区域。
+shadow             = false
+contact_shadow     = false
+compositor_blur    = false
 # 没有窗口切换按钮：它的预览会请求窗口截图（ext-image-copy-capture），而宿主
 # 合成器这条路径会空指针崩溃、连带整个会话退出。切换窗口用 dock/taskbar 的
 # 运行中应用图标（点一下聚焦），备选是 guest/bin/arlinux-dock 的 nwg-dock。
