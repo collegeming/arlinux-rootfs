@@ -1,0 +1,98 @@
+name: Publish Arch rootfs artifact
+
+# Moves an already verified build artifact into a GitHub Release so a device
+# can download it directly. The bundle itself is never rebuilt: this job
+# downloads the exact artifact the build workflow verified and re-publishes it
+# under a stable, public asset name.
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: Actions run that produced arlinux-arch-rootfs
+        required: true
+        type: string
+      tag:
+        description: Release tag to create (must not exist yet)
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-arch-${{ inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish ${{ inputs.tag }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Fetch the verified artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh run download "${{ inputs.run_id }}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --name arlinux-arch-rootfs \
+            --dir release-assets
+          ls -l release-assets
+          test -s release-assets/default.zip
+          test -s release-assets/default.json
+          python3 - <<'PY'
+          import json, hashlib, pathlib, zipfile
+          bundle = pathlib.Path('release-assets/default.zip')
+          receipt = json.loads(pathlib.Path('release-assets/default.json').read_text())
+          digest = hashlib.sha256(bundle.read_bytes()).hexdigest()
+          assert digest == receipt['desktopSha256'], 'bundle differs from its receipt'
+          with zipfile.ZipFile(bundle) as archive:
+              manifest = json.loads(archive.read('manifest.json'))
+          for name, expected in manifest['files'].items():
+              actual = hashlib.sha256(archive.read(name)).hexdigest()
+              assert actual == expected, f'payload checksum mismatch: {name}'
+          print('bundle verified:', digest, manifest['distributionId'], manifest['compositor'])
+          PY
+          sha256sum release-assets/default.zip > release-assets/SHA256SUMS
+          cat release-assets/SHA256SUMS
+
+      - name: Refuse to replace an existing release
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh api "repos/$GITHUB_REPOSITORY/releases/tags/${{ inputs.tag }}" --silent 2>/dev/null; then
+            echo "release ${{ inputs.tag }} already exists" >&2
+            exit 1
+          fi
+
+      - name: Create the release
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > "$RUNNER_TEMP/notes.md" <<EOF
+          Arch Linux (Niri-style desktop) rootfs bundle for ARLinux.
+
+          - Download **arlinux-arch-niri-default.zip** and import that file in the
+            ARLinux app (not this page's source archive, and not any wrapper zip).
+          - SHA-256: \`$(cut -d' ' -f1 release-assets/SHA256SUMS)\`
+          - Built from the verified artifact of run ${{ inputs.run_id }}; the
+            pipeline receipt is attached as \`default.json\`.
+          - Device prerequisites and behaviour are described in
+            \`distributions/arch/README.md\` in this repository.
+
+          The bundle contains the desktop userspace only: the Android host supplies
+          the compositor, input, audio and device access.
+          EOF
+          gh release create "${{ inputs.tag }}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "Arch Niri desktop rootfs ${{ inputs.tag }}" \
+            --notes-file "$RUNNER_TEMP/notes.md" \
+            --latest=false \
+            "release-assets/default.zip#arlinux-arch-niri-default.zip" \
+            "release-assets/default.json" \
+            "release-assets/SHA256SUMS"
+          gh release view "${{ inputs.tag }}" --repo "$GITHUB_REPOSITORY" \
+            --json assets --jq '.assets[] | "\(.name)\t\(.size)"'
