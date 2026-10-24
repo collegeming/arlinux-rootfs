@@ -1,0 +1,22 @@
+#!/bin/bash
+# Mirror the running desktop session's environment into this shell.
+#
+# A debug-channel shell (SSH, socat) starts with the *login* environment, not
+# the session's: without XDG_RUNTIME_DIR / HYPRLAND_INSTANCE_SIGNATURE /
+# XDG_CONFIG_HOME, hyprctl and `noctalia msg` cannot find the composition they
+# are supposed to talk to. Copy them from a live session process.
+for p in $(pgrep -f noctalia) $(pgrep -f desktop.sh) $(pgrep -x sshd); do
+    [ -r "/proc/$p/environ" ] || continue
+    while IFS= read -r -d "" kv; do
+        case "$kv" in
+            XDG_RUNTIME_DIR=*|HYPRLAND_INSTANCE_SIGNATURE=*|HOME=*|XDG_CONFIG_HOME=*|\
+XDG_STATE_HOME=*|XDG_CACHE_HOME=*|XDG_DATA_HOME=*|XDG_DATA_DIRS=*|PATH=*|\
+WAYLAND_DISPLAY=*|DISPLAY=*|TZ=*|LANG=*|LC_ALL=*|SHELL=*|TMPDIR=*|\
+FONTCONFIG_PATH=*|FONTCONFIG_FILE=*|FONTCONFIG_SYSROOT=*|XKB_CONFIG_ROOT=*|\
+GTK_IM_MODULE=*|QT_IM_MODULE=*|XMODIFIERS=*|PULSE_SERVER=*|BIONICX_ROOTFS=*|\
+BIONICX_FILES=*|BIONICX_TMPDIR=*|MOZ_ENABLE_WAYLAND=*)
+                export "$kv" ;;
+        esac
+    done < "/proc/$p/environ"
+    [ -n "${XDG_RUNTIME_DIR:-}" ] && break
+done

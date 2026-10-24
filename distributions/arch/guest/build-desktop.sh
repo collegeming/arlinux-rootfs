@@ -104,7 +104,7 @@ set -- \
     curl ca-certificates xorg-xrdb dbus dbus-glib at-spi2-core ibus python-dbus python-atspi \
     python-gobject python-pip mpg123 patch wayland libx11 libxcb libxxf86vm \
     gtk3 gtk4 libnotify nss libxss libxtst libsecret xdg-utils xdg-terminal-exec \
-    alsa-plugins libpulse cups libdrm pango cairo jq socat imagemagick \
+    alsa-plugins libpulse cups libdrm pango cairo jq socat openssh imagemagick \
     bash-completion procps-ng tzdata unzip libarchive tar xz git cinnamon-translations \
     binutils file perl \
     libxext libxshmfence libglvnd vulkan-icd-loader libxrandr libxfixes libxrender \
@@ -208,6 +208,10 @@ test -x /usr/bin/wayland-info
 test -s /usr/share/arlinux/nwg-dock-pinned
 test -s /usr/share/applications/arlinux-close-window.desktop
 test -s /usr/share/arlinux/noctalia/00-arlinux.toml
+test -s "/usr/share/arlinux/noctalia/palettes/Catppuccin Frappe.json"
+test -x /usr/bin/sshd
+test -s /etc/ssh/sshd_arlinux.conf
+test -s /usr/share/icons/hicolor/icon-theme.cache
 pacman -Q deepseek-harness >/dev/null
 pacman -Q paru >/dev/null
 # Zen Browser links libraries the desktop set provides; the cleanup above runs

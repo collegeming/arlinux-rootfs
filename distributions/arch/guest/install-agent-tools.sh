@@ -183,4 +183,9 @@ StartupNotify=true
 Terminal=false
 DESKTOP
 test -x /usr/bin/zen-browser
+# Icon symlinks above land under hicolor after the package-set icon cache was
+# built, so the cache must be regenerated or GTK apps (and the shell's dock)
+# show placeholders for zen-browser and zcode.
+gtk-update-icon-cache -f -t /usr/share/icons/hicolor >/dev/null 2>&1 || true
+test -s /usr/share/icons/hicolor/icon-theme.cache
 echo '--> [agents] kimi-code, ZCode and Zen Browser installed'
