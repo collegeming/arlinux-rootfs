@@ -34,6 +34,12 @@ kitty 使用 Catppuccin Frappe 主题、Maple Mono NF CN 字体、0.85 背景不
 `reef` 仅在 AUR 提供，按尽力安装处理：`conf.d/reef.fish` 在 reef 缺失时静默降级，
 不让一个滚动更新的 AUR 配方拖垮镜像。
 
+桌面外壳与终端共用同一套调色板：镜像内置 Catppuccin Frappe 的调色板 JSON
+（`guest/desktop/palettes/catppuccin-frappe.json`，会话启动时装到
+`$XDG_CONFIG_HOME/noctalia/palettes/`），`[theme]` 以 `source = "custom"` 引用它，
+不需要联网、与 kitty 的配色一致（暗色模式）。`[plugins] auto_update = "none"` 关掉插件源的
+后台 git 更新，Noctalia 启动后不再常驻 `git fetch` 进程。
+
 ## 输入法
 
 手机输入法通过框架提供的 IBus 通路进入 guest：`accessibility-session.sh` 发布会话总线并注册
@@ -84,7 +90,7 @@ Noctalia 按字母序合并配置目录，用户自己的 `*.toml` 在其后加�
 
 顶栏布局：**左侧**启动器、应用抽屉、终端、关闭当前窗口、桌面诊断；**中间**taskbar（运行中的窗口）；**右侧**时钟、音量、电池、控制中心。
 
-**dock 只启用 Noctalia 自己的那个**（`[dock] enabled = true`，`launcher_position = "none"`，所以第一个磁贴就是 Apps，没有额外的网格按钮）。nwg-dock-hyprland 与 nwg-drawer 仍在镜像里但不自动启动，想对比时在终端跑 `arlinux-dock`（它只经宿主合成器 IPC 取窗口列表）。
+**dock 只启用 Noctalia 自己的那个**（`[dock] enabled = true`，`launcher_position = "none"`，所以第一个磁贴就是 Apps，没有额外的网格按钮）。dock 处于**悬浮模式**：`reserve_space = false`，不向合成器申请独占区，应用窗口因此能用满整屏高度；外观上关掉全局阴影与描边（宿主合成器不画模糊，阴影会渲染成硬边黑框），大圆角、半透明、非活动图标不缩小。nwg-dock-hyprland 与 nwg-drawer 仍在镜像里但不自动启动，想对比时在终端跑 `arlinux-dock`（它只经宿主合成器 IPC 取窗口列表）。
 
 **没有"窗口切换面板"按钮**，这是刻意的：Noctalia 的切换面板带窗口预览，预览会走 `ext-image-copy-capture` 请求窗口截图源，而宿主合成器这条路径会空指针崩溃（见下），连带整个会话退出。切换窗口请用 dock/taskbar 上的运行中应用图标。
 
@@ -110,6 +116,48 @@ Noctalia 按字母序合并配置目录，用户自己的 `*.toml` 在其后加�
 `ext_foreign_toplevel_list_v1`、`hyprland_toplevel_mapping_manager_v1` 决定 shell 侧 taskbar 与 dock 能否列出窗口，
 `ext_image_copy_capture_*` 出现在清单里说明宿主仍然会崩。shell 的每次退出都会写一行到 logcat（`arlinux-guest` 标签），
 便于在没有 adb 访问实例文件的情况下定位。
+
+### 会话被宿主系统的内存管理结束（非崩溃）
+
+设备内存吃紧时，MIUI 的内存清理会直接结束整个 guest 会话进程组。logcat 里的证据链：
+
+```text
+I/ActivityManager: Killing 28637:io.taowen.arlinux:guest/u0a318 (adj 705): umms1_normal_mem_pressure
+I/libc: kill: send 9 to pid 28637 / kill: send 9 to pid -28637
+I/ActivityManager: Process PhantomProcessRecord {... 28670:28637:libarlinux_exec.so ...} died   # 同一毫秒整组消失
+```
+
+`io.taowen.arlinux:guest` 是框架为 guest 单独注册的 Android 进程，不在前台时带 `adj 705`，
+属于 MIUI 内存清理的候选；被清理时其中的 sshd、shell、所有应用一起消失，桌面表现为"整个桌面不见了"。
+app 进程本身还活着，但不会自动重启会话（要重新打开发行版）。缓解手段（设备侧，与镜像无关）：
+
+- 系统设置 → 应用管理 → ARLinux → 省电策略改为**无限制**，并在最近任务里**锁定**该应用；
+- 控制 guest 的内存占用：ZCode 桌面版（Electron，常驻 1 GB 量级）与大型构建同时跑时最容易触发；
+- `dumpsys meminfo io.taowen.arlinux` 可看 app 侧内存，guest 内 `free -m`、`ps -eo rss` 可看总量。
+
+### 外壳被单独结束（SIGKILL）
+
+Noctalia 进程会以 `status=137`（SIGKILL）单独退出，间隔从几秒到几分钟不等，`desktop.sh` 立即重启它，
+症状是 bar/dock 重绘一次。已排除的可能：内核 OOM（宿主 `/proc/vmstat` 的 `oom_kill` 计数不变）、
+Android/MIUI 用户态清理（logcat 里没有任何对应的 `kill:`、`Killing` 或 phantom 记录）、宿主合成器
+（它结束客户端会走自己的 IPC 路径并留日志）。剩余解释是 guest 命名空间内某个进程发的信号——guest 用自己的
+glibc，这类 `kill()` 不会进入 MIUI 的日志。想继续追可用 `sshd` 通道在 guest 里装捕手：
+`guest/debug/README.md` 的 SSH 配方 + `waitid` 包装（记录 `si_code`/`si_pid`）。
+
+## 调试与自动化通道（SSH）
+
+实例没有物理键盘，app 界面也不能执行 shell 命令。镜像自带一个只监听 `127.0.0.1` 的 sshd
+（`guest/debug/sshd_arlinux.conf`，端口 2222，仅公钥登录，`UsePAM no`），由 `desktop.sh`
+在每次会话启动时拉起；配合 `adb forward` 就能在电脑上操作实例，改配置、读日志都不用重装 rootfs：
+
+```sh
+adb forward tcp:2222 tcp:2222
+ssh -p 2222 root@127.0.0.1          # 公钥先写进实例的 /root/.ssh/authorized_keys
+```
+
+SSH 会话不会继承桌面会话的环境变量，跑 `hyprctl`、`noctalia msg` 前要先从运行中的进程取一份
+（`guest/debug/README.md` 里有一行式做法）。`socat` 的 PTY shell（端口 2323，无认证）是救援通道，
+默认关闭，`touch ~/.arlinux-debug-socat` 后随会话开启。
 
 ## 软件与包管理
 

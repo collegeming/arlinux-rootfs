@@ -8,9 +8,24 @@
 # 竖条（轻点=键盘，双击=应用抽屉，长按=AI 语音）。固定项写桌面项 ID（文件名去掉
 # .desktop 后缀，如 zen），这是 Noctalia 5.3 的精确匹配规则。
 
+[theme]
+# 与 kitty 的 Catppuccin Frappe 对齐：调色板 JSON 随镜像提供（离线可用），
+# desktop.sh 每次会话装到 $XDG_CONFIG_HOME/noctalia/palettes/，这里按文件名引用。
+mode              = "dark"
+shell_mode        = "follow"
+source            = "custom"
+custom_palette    = "Catppuccin Frappe"
+pure_black_dark   = false
+sync_color_scheme = true
+
 [accessibility]
 # 面板类界面（启动器、控制中心、剪贴板等）整体放大，适合手指点选。
 ui_scale = 1.25
+
+[plugins]
+# 关闭插件源的后台 git 更新（启动时 + 每 6 小时）：既省内存和 CPU，也让
+# “Noctalia 一启动就 git fetch 两个插件源”的常驻下载进程消失。
+auto_update = "none"
 
 [shell]
 # 预置镜像不需要首启向导（它面向键盘操作）。
@@ -49,19 +64,28 @@ end                = ["clock", "volume", "battery", "control-center"]
 # 底部 dock 放置常用应用：点图标启动/切换，右键菜单固定或取消固定。
 # 第一个磁贴就是 ARLinux 的 Apps 抽屉（固定项第一项）；不显示 launcher 按钮，
 # 所以 dock 上不会出现额外的网格图标。
-enabled           = true
-position          = "bottom"
-icon_size         = 64
-item_spacing      = 12
-margin_edge       = 12
-margin_ends       = 48
-show_running      = true
-reserve_space     = true
-show_dots         = true
-# 放大效果跟随指针，触摸下无意义。
-magnification     = false
-launcher_position = "none"
-pinned            = ["arlinux-apps", "kitty", "zen", "zcode", "nemo"]
+#
+# 悬浮模式：reserve_space = false，不向合成器申请独占区，应用窗口用满整屏高度。
+# 宿主合成器不画模糊，全局阴影会渲染成硬边黑框，所以关掉 shadow、描边宽度归零。
+enabled            = true
+position           = "bottom"
+icon_size          = 56
+item_spacing       = 12
+background_opacity = 0.88
+border_width       = 0
+shadow             = false
+radius             = 22
+margin_edge        = 14
+margin_ends        = 150
+show_running       = true
+reserve_space      = false
+show_dots          = true
+# 触屏没有指针：非活动图标不缩小，活动图标只轻微放大。
+inactive_scale     = 1.0
+active_scale       = 1.06
+magnification      = false
+launcher_position  = "none"
+pinned             = ["arlinux-apps", "kitty", "zen", "zcode", "nemo"]
 
 # —— 点一下就能完成的操作 ——
 

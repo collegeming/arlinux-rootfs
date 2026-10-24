@@ -142,6 +142,17 @@ install -Dm644 "$guest/touch/arlinux-close-window.desktop" \
 install -Dm644 "$guest/touch/nwg-dock-pinned" /usr/share/arlinux/nwg-dock-pinned
 install -d /usr/share/arlinux/noctalia
 install -Dm644 "$guest/desktop/noctalia-arlinux.toml" /usr/share/arlinux/noctalia/00-arlinux.toml
+install -d /usr/share/arlinux/noctalia/palettes
+install -Dm644 "$guest/desktop/palettes/catppuccin-frappe.json" \
+    "/usr/share/arlinux/noctalia/palettes/Catppuccin Frappe.json"
+
+# --- Debug / automation channel (loopback only) --------------------------
+# There is no physical keyboard and the app UI cannot run shell commands, so
+# the image carries a key-only SSH daemon; desktop.sh starts it each session.
+# arlinux-guest-env copies the desktop session's environment into a debug
+# shell (client side: guest/debug/README.md).
+install -Dm644 "$guest/debug/sshd_arlinux.conf" /etc/ssh/sshd_arlinux.conf
+install -Dm755 "$guest/debug/arlinux-guest-env" /usr/local/bin/arlinux-guest-env
 
 # --- GTK defaults (system-wide) -----------------------------------------
 install -d /etc/gtk-3.0 /etc/gtk-4.0

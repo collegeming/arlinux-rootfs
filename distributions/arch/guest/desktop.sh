@@ -93,6 +93,11 @@ export -p > "$XDG_RUNTIME_DIR/arlinux-session.env" 2>/dev/null || true
 # files (config.toml, …) still win.
 install -d "$XDG_CONFIG_HOME/noctalia"
 install -Dm644 /usr/share/arlinux/noctalia/00-arlinux.toml "$XDG_CONFIG_HOME/noctalia/00-arlinux.toml"
+# The Catppuccin Frappe palette ships with the image so the shell keeps the
+# kitty theme offline; the config file above selects it by name.
+install -d "$XDG_CONFIG_HOME/noctalia/palettes"
+install -Dm644 "/usr/share/arlinux/noctalia/palettes/Catppuccin Frappe.json" \
+    "$XDG_CONFIG_HOME/noctalia/palettes/Catppuccin Frappe.json"
 
 log="$XDG_RUNTIME_DIR/noctalia.log"
 status_log="$XDG_RUNTIME_DIR/arlinux-desktop-status.log"
@@ -103,6 +108,26 @@ printf '%s session start: %s, %s\n' "$(date -Is)" \
     "$(pacman -Q noctalia 2>/dev/null || echo 'noctalia unknown')" \
     "$(hyprctl -j monitors 2>/dev/null | jq -c '[.[] | {name, width, height, refreshRate, scale}]' 2>/dev/null || echo 'monitors unknown')" \
     >> "$diag_log" 2>/dev/null || true
+
+# Debug / automation channel, loopback only. The instance has no physical
+# keyboard and the app UI cannot run shell commands, so the image starts a
+# key-only sshd each session (client recipe in guest/debug/README.md); the
+# unauthenticated socat PTY shell on 2323 is the rescue path and stays off
+# until the user opts in with ~/.arlinux-debug-socat.
+if [ -x /usr/bin/sshd ] && ! pgrep -x sshd >/dev/null 2>&1; then
+    mkdir -p /run/sshd /var/empty
+    [ -s /etc/ssh/ssh_host_ed25519_key ] || ssh-keygen -A >/dev/null 2>&1
+    if /usr/bin/sshd -f /etc/ssh/sshd_arlinux.conf -E /var/log/sshd.log 2>/dev/null; then
+        printf '%s debug channel: sshd listening on 127.0.0.1:2222\n' "$(date -Is)" >> "$diag_log"
+    else
+        printf '%s debug channel: sshd failed to start (see /var/log/sshd.log)\n' "$(date -Is)" >> "$diag_log"
+    fi
+fi
+if [ -f "$HOME/.arlinux-debug-socat" ] && command -v socat >/dev/null 2>&1 && ! pgrep -f "TCP-LISTEN:2323" >/dev/null 2>&1; then
+    socat TCP-LISTEN:2323,bind=127.0.0.1,reuseaddr,fork EXEC:'/bin/bash',pty,stderr,setsid,sigint,sane \
+        >"$XDG_RUNTIME_DIR/socat.log" 2>&1 &
+    printf '%s debug channel: socat PTY shell on 127.0.0.1:2323\n' "$(date -Is)" >> "$diag_log"
+fi
 
 # The host re-applies its own monitor rule when Android changes the display
 # refresh rate, which resets the output scale to 1.0. Re-check once the shell
