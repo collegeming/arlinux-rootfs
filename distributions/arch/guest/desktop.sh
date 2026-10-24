@@ -66,6 +66,9 @@ if ! pidof ibus-wayland >/dev/null 2>&1; then
             >>"$XDG_RUNTIME_DIR/ibus-wayland.log" 2>&1 &
     fi
 fi
+# Select the hosted engine explicitly. HostedInput publishes it at session
+# start; selecting it again is idempotent and covers a restarted shell.
+ibus engine arlinux-hosted >>"$XDG_RUNTIME_DIR/ibus-wayland.log" 2>&1 || true
 
 # Kitty translucency needs compositor-side blur, matching the reference
 # desktop's terminal look. Runtime keywords only; the host configuration
