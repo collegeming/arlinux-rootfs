@@ -41,6 +41,15 @@ done
 export HYPRLAND_INSTANCE_SIGNATURE="${signature:?Hyprland IPC socket did not appear}"
 export WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-wayland-0}"
 
+# Phone panels are large in physical pixels, so the host default (1.0) renders
+# the desktop much smaller than the device suggests. Pin the output scale at
+# 125% for the selected output; the rule is idempotent and re-applied on every
+# session start.
+monitor_name="$(hyprctl -j monitors 2>/dev/null | jq -r '.[0].name' 2>/dev/null || true)"
+if [ -n "${monitor_name:-}" ] && [ "$monitor_name" != "null" ]; then
+    hyprctl keyword monitor "${monitor_name},preferred,auto,1.25" >/dev/null 2>&1 || true
+fi
+
 # The Android keyboard reaches the guest through the shared IBus engine, but
 # the framework's accessibility wrapper only launches the Debian path
 # (/usr/libexec/ibus-ui-gtk3). Arch ships the Wayland input-method client at
