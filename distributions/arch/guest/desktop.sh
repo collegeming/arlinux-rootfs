@@ -75,6 +75,10 @@ while :; do
     status=0
     wait "$shell_pid" || status=$?
     ended=$(date +%s)
+    # stderr reaches the host session log, which is the only place a device-side
+    # black screen can be diagnosed without access to the instance directory.
+    printf '[arlinux] noctalia exited status=%s after %ss\n' \
+        "$status" "$((ended - started))" >&2
     {
         printf '%s noctalia exited status=%s after %ss\n' \
             "$(date -Is)" "$status" "$((ended - started))"
