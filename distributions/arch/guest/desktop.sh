@@ -41,6 +41,23 @@ done
 export HYPRLAND_INSTANCE_SIGNATURE="${signature:?Hyprland IPC socket did not appear}"
 export WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-wayland-0}"
 
+# The Android keyboard reaches the guest through the shared IBus engine, but
+# the framework's accessibility wrapper only launches the Debian path
+# (/usr/libexec/ibus-ui-gtk3). Arch ships the Wayland input-method client at
+# /usr/lib/ibus/ibus-wayland, so without this the compositor had no input
+# method: text-input-v3 clients (Electron, kitty) received no committed text
+# while ordinary key events such as Enter still worked.
+if ! pidof ibus-wayland >/dev/null 2>&1; then
+    if [ -x /usr/lib/ibus/ibus-wayland ]; then
+        env -u GTK_IM_MODULE -u QT_IM_MODULE /usr/lib/ibus/ibus-wayland \
+            >>"$XDG_RUNTIME_DIR/ibus-wayland.log" 2>&1 &
+    elif [ -x /usr/lib/ibus/ibus-ui-gtk3 ]; then
+        env -u GTK_IM_MODULE -u QT_IM_MODULE GDK_BACKEND=wayland \
+            /usr/lib/ibus/ibus-ui-gtk3 --enable-wayland-im \
+            >>"$XDG_RUNTIME_DIR/ibus-wayland.log" 2>&1 &
+    fi
+fi
+
 # Kitty translucency needs compositor-side blur, matching the reference
 # desktop's terminal look. Runtime keywords only; the host configuration
 # itself is never rewritten, and failures are non-fatal on other builds.
