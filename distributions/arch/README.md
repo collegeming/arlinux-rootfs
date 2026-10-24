@@ -75,21 +75,41 @@ Noctalia 按字母序合并配置目录，用户自己的 `*.toml` 在其后加�
 
 | 操作 | 点按方式 |
 | --- | --- |
-| 启动应用（等价 super+空格） | 顶栏最左侧启动器图标打开应用网格；底部 dock 或 nwg-dock 的固定图标点一下直接启动 |
-| 切换应用（等价 alt+tab） | 顶栏中间的 taskbar 点窗口图标；或点"切换窗口"按钮打开窗口切换面板（面板里点卡片切换，选中卡片上的关闭控件可关掉它）；nwg-dock 的窗口图标点一下即聚焦 |
-| 关闭应用（等价 super+Q） | 点"关闭当前窗口"按钮，或 dock 上的"关闭窗口"磁贴（走 `guest/touch/arlinux-window`，在 Lua 与经典两套派发器之间自动回退）；两指轻点 nwg-dock 的窗口图标打开右键菜单，其中也有 closewindow |
+| 启动应用（等价 super+空格） | 顶栏最左侧"启动器"图标打开应用网格；底部 dock 的固定项点一下直接启动 |
+| 切换应用（等价 alt+tab） | 顶栏中间的 taskbar 点窗口图标；dock 上运行中的应用点一下聚焦；`guest/bin/arlinux-dock` 手动启动的 nwg-dock 同样支持 |
+| 关闭应用（等价 super+Q） | 点"关闭当前窗口"按钮，或 dock 上的"关闭窗口"磁贴（走 `guest/touch/arlinux-window`，在 Lua 与经典两套派发器之间自动回退） |
 | 打开终端（等价 super+T） | 点"终端"按钮 |
-| 打开框架应用抽屉（Apps） | 点"应用抽屉"按钮（`guest/bin/arlinux-apps`） |
-| 会话诊断 | 点"桌面诊断"按钮，在 kitty 中查看合成器状态、窗口列表、输入法与历史退出记录 |
+| 打开框架应用抽屉（Apps） | 点"应用抽屉"按钮；dock 的**第一个磁贴**就是它（固定项第一项 `arlinux-apps`） |
+| 会话诊断 | 点"桌面诊断"按钮，在 kitty 中查看合成器状态、窗口列表、输入法、协议清单与历史退出记录 |
 
-宿主右边缘竖条的手势与发行版无关：轻点=手机键盘，双击=应用抽屉，长按=AI 语音；其余区域两指轻点=右键，两指滑动=滚动。竖条的"双击打开 Apps"由宿主原生的 hosted-app 服务完成（APK 的 `libarlinux_app_open.so`），只在抽屉进程还活着时生效——抽屉启动任意应用后会自行销毁窗口并退出（APK 内 `assets/guest/yibu-launcher.py`），所以镜像同时提供了上面的应用抽屉按钮。
+顶栏布局：**左侧**启动器、应用抽屉、终端、关闭当前窗口、桌面诊断；**中间**taskbar（运行中的窗口）；**右侧**时钟、音量、电池、控制中心。
 
-**两个 dock 同时启用**，用一段时间后决定留哪个：
+**dock 只启用 Noctalia 自己的那个**（`[dock] enabled = true`，`launcher_position = "none"`，所以第一个磁贴就是 Apps，没有额外的网格按钮）。nwg-dock-hyprland 与 nwg-drawer 仍在镜像里但不自动启动，想对比时在终端跑 `arlinux-dock`（它只经宿主合成器 IPC 取窗口列表）。
 
-- Noctalia dock（`[dock] enabled = true`）经 shell 的窗口集成取窗口列表；
-- nwg-dock-hyprland（`guest/bin/arlinux-dock`，由 `desktop.sh` 监督启动）只经宿主合成器 IPC 取窗口列表，shell 列不出窗口时它仍然可用；它的启动器按钮打开常驻的 nwg-drawer 应用网格（点按式，图标 96px、4 列）。
+**没有"窗口切换面板"按钮**，这是刻意的：Noctalia 的切换面板带窗口预览，预览会走 `ext-image-copy-capture` 请求窗口截图源，而宿主合成器这条路径会空指针崩溃（见下），连带整个会话退出。切换窗口请用 dock/taskbar 上的运行中应用图标。
 
-关掉其一：把 `00-arlinux.toml` 的 `[dock] enabled` 改成 `false`（或在用户自己的 `*.toml` 里覆盖），或去掉 `guest/desktop.sh` 里 nwg-dock 的启动块。会话启动时 `wayland-info` 的协议清单写入 `$XDG_RUNTIME_DIR/arlinux-protocols.log`：其中 `zwlr_foreign_toplevel_manager_v1`、`ext_foreign_toplevel_list_v1`、`hyprland_toplevel_mapping_manager_v1` 决定 shell 侧 taskbar 与 dock 能否列出窗口。
+### 已知宿主缺陷：截图会话导致整个会话崩溃
+
+`libanhyprland.so`（宿主合成器）创建截图会话时不检查 dmabuf 主设备是否为空：
+
+```text
+#00 CLinuxDMABufV1Protocol::getMainDevice()+0
+#01 CImageCopyCaptureSession::sendConstraints()+308
+#02 CImageCopyCaptureSession::CImageCopyCaptureSession(...)+1200
+#09 libwayland-server.so (wl_event_loop_dispatch+356)
+```
+
+触发序列（logcat，tag `anhyprland`）：任何访客进程绑定 `ext_foreign_toplevel_image_capture_source_manager_v1` /
+`ext_image_copy_capture_manager_v1` 并创建会话，例如打开窗口切换面板时
+`LayerSurface (namespace noctalia-window-switcher) created` → `New capture source for foreign toplevel` → 紧接着
+`Fatal signal 11 (SIGSEGV) ... pid (.taowen.arlinux)`。宿主进程一死，guest 会话里的所有进程（Xwayland、shell、dock）一起退出，
+表现就是"桌面时不时整个消失、shell 似乎一直在退出"。修复在宿主侧（空指针判空或干脆不暴露这两个全局协议）；
+在它修好之前，本镜像不使用任何会触发截图的功能。
+
+会话启动时 `wayland-info` 的协议清单写入 `$XDG_RUNTIME_DIR/arlinux-protocols.log`；其中 `zwlr_foreign_toplevel_manager_v1`、
+`ext_foreign_toplevel_list_v1`、`hyprland_toplevel_mapping_manager_v1` 决定 shell 侧 taskbar 与 dock 能否列出窗口，
+`ext_image_copy_capture_*` 出现在清单里说明宿主仍然会崩。shell 的每次退出都会写一行到 logcat（`arlinux-guest` 标签），
+便于在没有 adb 访问实例文件的情况下定位。
 
 ## 软件与包管理
 

@@ -118,8 +118,12 @@ printf '%s session start: %s, %s\n' "$(date -Is)" \
 
 # What the host compositor exposes decides which shell features can work: the
 # Noctalia taskbar and dock build their window lists from the foreign-toplevel
-# protocols, not from hyprctl. Record the full list once per session and print
-# the tracked ones so a device report carries the answer.
+# protocols, not from hyprctl. Record the full list once per session and mirror
+# the tracked ones to logcat: the guest log files sit inside the app's data
+# directory, so logcat is the only channel a device report can carry them.
+logcat_note() { # level tag message...
+    arlinux-logcat "$@" 2>/dev/null || true
+}
 if command -v wayland-info >/dev/null 2>&1; then
     protocols_log="$XDG_RUNTIME_DIR/arlinux-protocols.log"
     wayland-info > "$protocols_log" 2>&1 || true
@@ -130,45 +134,17 @@ if command -v wayland-info >/dev/null 2>&1; then
             summary="$summary $protocol"
         fi
     done
-    printf '[arlinux] compositor protocols:%s\n' "${summary:- none of the tracked ones}" >&2
+    summary="${summary:- none of the tracked ones}"
+    printf '[arlinux] compositor protocols:%s\n' "$summary" >&2
+    logcat_note info arlinux-guest "compositor protocols:$summary"
 fi
 
-# nwg-dock-hyprland runs next to the Noctalia dock until the device decides
-# which one stays: it draws its window list from the host compositor's IPC, so
-# it also works when the shell cannot list windows. Its launcher button toggles
-# the resident nwg-drawer, a tap-first app grid.
-if command -v nwg-dock-hyprland >/dev/null 2>&1; then
-    cache="${XDG_CACHE_HOME:-$HOME/.cache}"
-    mkdir -p "$cache"
-    if [ ! -e "$cache/nwg-dock-pinned" ] && [ -f /usr/share/arlinux/nwg-dock-pinned ]; then
-        cp /usr/share/arlinux/nwg-dock-pinned "$cache/nwg-dock-pinned"
-    fi
-    if command -v nwg-drawer >/dev/null 2>&1; then
-        setsid nwg-drawer -r -k -ovl -closebtn right -term kitty -fm nemo \
-            -is 96 -c 4 -spacing 24 -nocats \
-            >>"$XDG_RUNTIME_DIR/nwg-drawer.log" 2>&1 &
-    fi
-    (
-        dock_attempt=0
-        while :; do
-            started=$(date +%s)
-            arlinux-dock >>"$XDG_RUNTIME_DIR/nwg-dock.log" 2>&1
-            status=$?
-            # Another resident instance already owns the dock; nothing to do.
-            [ "$status" -eq 0 ] && break
-            ended=$(date +%s)
-            if [ $((ended - started)) -ge 30 ]; then
-                dock_attempt=0
-            else
-                dock_attempt=$((dock_attempt + 1))
-            fi
-            if [ "$dock_attempt" -ge 5 ]; then
-                printf '%s\n' '[arlinux] nwg-dock-hyprland keeps exiting; see nwg-dock.log' >&2
-                break
-            fi
-            sleep 2
-        done
-    ) >>"$diag_log" 2>&1 &
+# Seed the pins of the optional second dock (guest/bin/arlinux-dock). The dock
+# itself stays off until it is started: the Noctalia dock is the one in use.
+cache="${XDG_CACHE_HOME:-$HOME/.cache}"
+mkdir -p "$cache"
+if [ ! -e "$cache/nwg-dock-pinned" ] && [ -f /usr/share/arlinux/nwg-dock-pinned ]; then
+    cp /usr/share/arlinux/nwg-dock-pinned "$cache/nwg-dock-pinned"
 fi
 
 # Supervise the desktop shell. The shell is the session's only window-manager
@@ -177,7 +153,7 @@ fi
 # restarted with a growing pause instead of ending the session. Exiting here is
 # what a device shows as "the desktop died and stayed black".
 record_exit() { # status started ended
-    local status="$1" started="$2" ended="$3" uptime
+    local status="$1" started="$2" ended="$3" uptime windows scale last
     uptime=$((ended - started))
     {
         printf '%s noctalia exited status=%s after=%ss\n' "$(date -Is)" "$status" "$uptime"
@@ -187,6 +163,13 @@ record_exit() { # status started ended
         ibus engine 2>/dev/null | sed 's/^/  ibus engine: /'
         tail -n 60 "$log" 2>/dev/null | sed 's/^/  log: /'
     } >> "$diag_log" 2>/dev/null || true
+    # One logcat line per exit: the shell log file is unreachable from adb, and
+    # a session that dies with a stack trace still leaves this behind.
+    windows="$(hyprctl -j clients 2>/dev/null | jq -c 'length' 2>/dev/null || echo '?')"
+    scale="$(hyprctl -j monitors 2>/dev/null | jq -r '.[0].scale' 2>/dev/null || echo '?')"
+    last="$(tail -n 1 "$log" 2>/dev/null)"
+    logcat_note warn arlinux-guest \
+        "noctalia exited status=$status after=${uptime}s windows=$windows scale=$scale last=${last:-none}"
 }
 
 attempt=0

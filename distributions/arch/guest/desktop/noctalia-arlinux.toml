@@ -24,14 +24,6 @@ default_view = "all"
 width        = 1000
 pinned       = ["arlinux-apps", "kitty", "zen", "zcode"]
 
-[shell.window_switcher]
-# 点按式 alt+tab：面板里点卡片切换，选中卡片上的关闭控件可关闭窗口。
-style                  = "carousel"
-mru                    = true
-show_caption           = true
-show_all_outputs       = false
-current_workspace_only = false
-
 [osd]
 # 音量/亮度等提示条放大，便于阅读。
 scale = 1.25
@@ -46,13 +38,17 @@ margin_ends        = 10
 background_opacity = 0.94
 # 触屏没有 hover，关掉悬停提示。
 show_tooltip       = false
-start              = ["launcher", "apps", "term", "close", "switch", "diag"]
+# 没有窗口切换按钮：它的预览会请求窗口截图（ext-image-copy-capture），而宿主
+# 合成器这条路径会空指针崩溃、连带整个会话退出。切换窗口用 dock/taskbar 的
+# 运行中应用图标（点一下聚焦），备选是 guest/bin/arlinux-dock 的 nwg-dock。
+start              = ["launcher", "apps", "term", "close", "diag"]
 center             = ["taskbar"]
 end                = ["clock", "volume", "battery", "control-center"]
 
 [dock]
-# 底部 dock 放置常用应用：点图标启动/切换，右键菜单固定或取消固定。nwg-dock 同时
-# 启用（见 desktop.sh），用过后自行决定留哪个。
+# 底部 dock 放置常用应用：点图标启动/切换，右键菜单固定或取消固定。
+# 第一个磁贴就是 ARLinux 的 Apps 抽屉（固定项第一项）；不显示 launcher 按钮，
+# 所以 dock 上不会出现额外的网格图标。
 enabled           = true
 position          = "bottom"
 icon_size         = 64
@@ -64,8 +60,7 @@ reserve_space     = true
 show_dots         = true
 # 放大效果跟随指针，触摸下无意义。
 magnification     = false
-launcher_position = "start"
-launcher_icon     = "grid-dots"
+launcher_position = "none"
 pinned            = ["arlinux-apps", "kitty", "zen", "zcode", "nemo"]
 
 # —— 点一下就能完成的操作 ——
@@ -109,15 +104,6 @@ tooltip = "关闭当前窗口"
 
 [widget.close.actions]
 left = "exec /usr/bin/arlinux-window close"
-
-[widget.switch]
-# 与 alt+tab 等价：Noctalia 的窗口切换面板。
-type    = "custom_button"
-glyph   = "arrows-exchange"
-tooltip = "切换窗口"
-
-[widget.switch.actions]
-left = "window-switcher"
 
 [widget.diag]
 # 会话诊断（合成器状态、窗口列表、输入法、配置校验、退出记录），排障时点它。

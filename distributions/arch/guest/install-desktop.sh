@@ -135,6 +135,7 @@ printf 'kitty.desktop\n' > /etc/xdg/xdg-terminals.list
 install -Dm755 "$guest/bin/arlinux-apps" /usr/local/bin/arlinux-apps
 install -Dm755 "$guest/bin/arlinux-diag" /usr/local/bin/arlinux-diag
 install -Dm755 "$guest/bin/arlinux-dock" /usr/local/bin/arlinux-dock
+install -Dm755 "$guest/bin/arlinux-logcat" /usr/local/bin/arlinux-logcat
 install -Dm755 "$guest/touch/arlinux-window" /usr/bin/arlinux-window
 install -Dm644 "$guest/touch/arlinux-close-window.desktop" \
     /usr/share/applications/arlinux-close-window.desktop

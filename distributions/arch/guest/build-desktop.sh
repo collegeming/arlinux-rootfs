@@ -202,6 +202,7 @@ test -x /usr/bin/nwg-drawer
 test -x /usr/local/bin/arlinux-apps
 test -x /usr/local/bin/arlinux-diag
 test -x /usr/local/bin/arlinux-dock
+test -x /usr/local/bin/arlinux-logcat
 test -x /usr/bin/arlinux-window
 test -x /usr/bin/wayland-info
 test -s /usr/share/arlinux/nwg-dock-pinned
