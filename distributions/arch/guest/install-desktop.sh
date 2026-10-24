@@ -135,6 +135,10 @@ printf 'kitty.desktop\n' > /etc/xdg/xdg-terminals.list
 install -Dm755 "$guest/bin/arlinux-apps" /usr/local/bin/arlinux-apps
 install -Dm755 "$guest/bin/arlinux-diag" /usr/local/bin/arlinux-diag
 install -Dm755 "$guest/bin/arlinux-dock" /usr/local/bin/arlinux-dock
+install -Dm755 "$guest/touch/arlinux-window" /usr/bin/arlinux-window
+install -Dm644 "$guest/touch/arlinux-close-window.desktop" \
+    /usr/share/applications/arlinux-close-window.desktop
+install -Dm644 "$guest/touch/nwg-dock-pinned" /usr/share/arlinux/nwg-dock-pinned
 install -d /usr/share/arlinux/noctalia
 install -Dm644 "$guest/desktop/noctalia-arlinux.toml" /usr/share/arlinux/noctalia/00-arlinux.toml
 

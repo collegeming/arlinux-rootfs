@@ -94,7 +94,7 @@ fi
 # clients, Qt/Quickshell stack, input method, fonts, files and AI agents.
 set -- \
     kitty fish fastfetch neovim nemo gvfs wl-clipboard wtype xclip xdotool \
-    fuzzel noctalia quickshell nwg-dock-hyprland nwg-drawer \
+    fuzzel noctalia quickshell nwg-dock-hyprland nwg-drawer wayland-utils \
     qt6-declarative qt6-svg qt6-wayland qt6-multimedia \
     qt6-5compat qt6-imageformats inotify-tools hyprutils hyprwire hyprlang re2 \
     fcitx5 fcitx5-rime fcitx5-gtk fcitx5-qt fcitx5-configtool rime-ice-git \
@@ -201,6 +201,11 @@ test -x /usr/bin/nwg-dock-hyprland
 test -x /usr/bin/nwg-drawer
 test -x /usr/local/bin/arlinux-apps
 test -x /usr/local/bin/arlinux-diag
+test -x /usr/local/bin/arlinux-dock
+test -x /usr/bin/arlinux-window
+test -x /usr/bin/wayland-info
+test -s /usr/share/arlinux/nwg-dock-pinned
+test -s /usr/share/applications/arlinux-close-window.desktop
 test -s /usr/share/arlinux/noctalia/00-arlinux.toml
 pacman -Q deepseek-harness >/dev/null
 pacman -Q paru >/dev/null

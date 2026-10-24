@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=关闭窗口
+Comment=关闭当前窗口
+Exec=/usr/bin/arlinux-window close
+Icon=window-close
+Terminal=false
+Categories=System;
+StartupNotify=false

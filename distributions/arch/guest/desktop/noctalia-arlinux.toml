@@ -37,7 +37,7 @@ reserve_space     = true
 show_dots         = true
 launcher_position = "start"
 launcher_icon     = "grid-dots"
-pinned            = ["kitty", "zen-browser", "zcode", "arlinux-apps", "nemo", "opencode"]
+pinned            = ["arlinux-apps", "kitty", "zen", "zcode", "nemo", "arlinux-opencode"]
 
 # —— 点一下就能完成的操作 ——
 
@@ -45,10 +45,11 @@ pinned            = ["kitty", "zen-browser", "zcode", "arlinux-apps", "nemo", "o
 type = "launcher"
 
 [widget.taskbar]
-# 点图标=切换窗口，两指轻点（右键）=固定/取消固定菜单。
+# 点图标=切换窗口，两指轻点（右键）=固定/取消固定菜单。固定项与 dock 共用同一套
+# 桌面项匹配规则，写桌面项 ID（不带 .desktop 后缀）。
 type         = "taskbar"
 show_running = true
-pinned       = ["kitty.desktop", "zen.desktop", "zcode.desktop", "arlinux-apps.desktop"]
+pinned       = ["kitty", "zen", "zcode", "arlinux-apps"]
 
 [widget.apps]
 # ARLinux 应用抽屉（框架提供的触摸网格；双击右边缘竖条是同一个程序）。
@@ -69,12 +70,14 @@ left = "exec kitty"
 
 [widget.close]
 # 与 super+Q 等价：关闭当前窗口。宿主合成器不画窗口装饰，所以关闭入口放在这里。
+# 命令走 arlinux-window：它在 Lua 与经典两套派发器之间自动回退，比直接写
+# hyprctl dispatch killactive 更可靠。
 type    = "custom_button"
 glyph   = "x"
 tooltip = "关闭当前窗口"
 
 [widget.close.actions]
-left = "exec hyprctl dispatch killactive"
+left = "exec /usr/bin/arlinux-window close"
 
 [widget.switch]
 # 与 alt+tab 等价：Noctalia 的窗口切换面板。

@@ -116,6 +116,61 @@ printf '%s session start: %s, %s\n' "$(date -Is)" \
     fi
 ) &
 
+# What the host compositor exposes decides which shell features can work: the
+# Noctalia taskbar and dock build their window lists from the foreign-toplevel
+# protocols, not from hyprctl. Record the full list once per session and print
+# the tracked ones so a device report carries the answer.
+if command -v wayland-info >/dev/null 2>&1; then
+    protocols_log="$XDG_RUNTIME_DIR/arlinux-protocols.log"
+    wayland-info > "$protocols_log" 2>&1 || true
+    tracked='zwlr_foreign_toplevel_manager_v1 ext_foreign_toplevel_list_v1 hyprland_toplevel_mapping_manager_v1 zwlr_layer_shell_v1 zwp_virtual_keyboard_manager_v1 zwp_text_input_manager_v3'
+    summary=''
+    for protocol in $tracked; do
+        if grep -q "$protocol" "$protocols_log" 2>/dev/null; then
+            summary="$summary $protocol"
+        fi
+    done
+    printf '[arlinux] compositor protocols:%s\n' "${summary:- none of the tracked ones}" >&2
+fi
+
+# nwg-dock-hyprland runs next to the Noctalia dock until the device decides
+# which one stays: it draws its window list from the host compositor's IPC, so
+# it also works when the shell cannot list windows. Its launcher button toggles
+# the resident nwg-drawer, a tap-first app grid.
+if command -v nwg-dock-hyprland >/dev/null 2>&1; then
+    cache="${XDG_CACHE_HOME:-$HOME/.cache}"
+    mkdir -p "$cache"
+    if [ ! -e "$cache/nwg-dock-pinned" ] && [ -f /usr/share/arlinux/nwg-dock-pinned ]; then
+        cp /usr/share/arlinux/nwg-dock-pinned "$cache/nwg-dock-pinned"
+    fi
+    if command -v nwg-drawer >/dev/null 2>&1; then
+        setsid nwg-drawer -r -k -ovl -closebtn right -term kitty -fm nemo \
+            -is 96 -c 4 -spacing 24 -nocats \
+            >>"$XDG_RUNTIME_DIR/nwg-drawer.log" 2>&1 &
+    fi
+    (
+        dock_attempt=0
+        while :; do
+            started=$(date +%s)
+            arlinux-dock >>"$XDG_RUNTIME_DIR/nwg-dock.log" 2>&1
+            status=$?
+            # Another resident instance already owns the dock; nothing to do.
+            [ "$status" -eq 0 ] && break
+            ended=$(date +%s)
+            if [ $((ended - started)) -ge 30 ]; then
+                dock_attempt=0
+            else
+                dock_attempt=$((dock_attempt + 1))
+            fi
+            if [ "$dock_attempt" -ge 5 ]; then
+                printf '%s\n' '[arlinux] nwg-dock-hyprland keeps exiting; see nwg-dock.log' >&2
+                break
+            fi
+            sleep 2
+        done
+    ) >>"$diag_log" 2>&1 &
+fi
+
 # Supervise the desktop shell. The shell is the session's only window-manager
 # surface, so it is never left dead: every exit is recorded with its status,
 # its runtime and the compositor state at that moment, and the shell is

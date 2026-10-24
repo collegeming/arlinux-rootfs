@@ -1,0 +1,44 @@
+#!/bin/sh
+# Window operations for the touch desktop.
+#
+# The compositor belongs to the Android host, so nothing here reads or writes a
+# Hyprland configuration file: every operation goes through the host's IPC
+# socket. The hosted compositor runs the Lua dispatcher dialect while a stock
+# Hyprland answers the classic one, so each operation tries Lua first and falls
+# back to the classic dispatcher.
+set -u
+
+log="${XDG_RUNTIME_DIR:-/tmp}/arlinux-window.log"
+
+active_address() {
+    hyprctl -j activewindow 2>/dev/null \
+        | tr ',' '\n' \
+        | sed -n 's/.*"address"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' \
+        | head -n 1
+}
+
+close_window() {
+    address="$(active_address)"
+    if [ -n "$address" ]; then
+        hyprctl --quiet dispatch "hl.dsp.window.close({window=\"address:$address\"})" >/dev/null 2>&1 && return 0
+        hyprctl --quiet dispatch closewindow "address:$address" >/dev/null 2>&1 && return 0
+    fi
+    hyprctl --quiet dispatch "hl.dsp.window.close()" >/dev/null 2>&1 && return 0
+    # "An argument must be present" for the classic dispatcher; dispatchers
+    # without parameters ignore its value.
+    hyprctl --quiet dispatch killactive 1 >/dev/null 2>&1 && return 0
+    return 1
+}
+
+case "${1:-}" in
+close)
+    if ! close_window; then
+        printf '%s close failed\n' "$(date -Is)" >> "$log" 2>/dev/null || true
+        exit 1
+    fi
+    ;;
+*)
+    echo "usage: arlinux-window close" >&2
+    exit 2
+    ;;
+esac
