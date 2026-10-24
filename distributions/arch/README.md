@@ -137,12 +137,19 @@ app 进程本身还活着，但不会自动重启会话（要重新打开发行�
 
 ### 外壳被单独结束（SIGKILL）
 
-Noctalia 进程会以 `status=137`（SIGKILL）单独退出，间隔从几秒到几分钟不等，`desktop.sh` 立即重启它，
-症状是 bar/dock 重绘一次。已排除的可能：内核 OOM（宿主 `/proc/vmstat` 的 `oom_kill` 计数不变）、
-Android/MIUI 用户态清理（logcat 里没有任何对应的 `kill:`、`Killing` 或 phantom 记录）、宿主合成器
-（它结束客户端会走自己的 IPC 路径并留日志）。剩余解释是 guest 命名空间内某个进程发的信号——guest 用自己的
-glibc，这类 `kill()` 不会进入 MIUI 的日志。想继续追可用 `sshd` 通道在 guest 里装捕手：
-`guest/debug/README.md` 的 SSH 配方 + `waitid` 包装（记录 `si_code`/`si_pid`）。
+Noctalia 进程会以 `status=137`（SIGKILL）单独退出，间隔从几秒到几分钟不等（实测 0–559 秒），
+`desktop.sh` 立即重启它，症状只是 bar/dock 重绘一次。已排除：内核 OOM（宿主 `/proc/vmstat`
+的 `oom_kill` 计数不变，mimd cgroup 的 `oom_kill`/`failcnt` 也不动）、Android/MIUI 的 AM 清理
+（logcat 里没有对应的 `kill:`、`Killing` 或 phantom 记录）、宿主合成器（它结束客户端会走自己的
+IPC 路径）、以及设备侧观测活动（空转数分钟后仍会复现）。`plugins.auto_update = "none"` 也不是
+触发条件：关掉后仍然复现。
+
+剩下的解释只有两类，都恰好不会留下日志：guest 命名空间内的某个进程发信号（guest 用自己的
+glibc，`kill()` 不进 MIUI 的插桩日志），或宿主侧原生守护进程绕过 libc 直接发信号（`tgkill`/
+pidfd）。值得注意的是 MIUI 的 SSRU 一直把该 uid 标为 `restricter=1`（受限应用），而每次被杀
+的都是 uid 里 CPU/内存占用最大的 guest 进程。因此设备侧的首选缓解是系统设置里把 ARLinux 的
+省电策略改成**无限制**并锁定最近任务；继续取证用 `guest/debug/README.md` 里的 `waitid` 包装
+（能判定"内核还是用户态"，但不能点名发送方——这一点需要宿主侧的 trace/audit 权限）。
 
 ## 调试与自动化通道（SSH）
 

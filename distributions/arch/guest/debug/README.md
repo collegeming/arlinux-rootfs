@@ -53,3 +53,20 @@ touch ~/.arlinux-debug-socat
 > 安全边界：这两条通道都只绑定 127.0.0.1，等价于“能连本机端口的进程”即可访问——
 > 也就是设备上的其他 Android 应用（借助 `adb forward` 时才是电脑）。SSH 走公钥，
 > socat 无认证，所以 socat 默认关闭、需要显式开启。
+
+## 记录外壳被谁结束：waitid 包装
+
+Noctalia 会以 `status=137`（SIGKILL）被单独结束，且两侧日志都没有凶手的痕迹。
+`noctalia-waitid.py` 把真正的二进制包一层、用 `waitid()` 记录子进程的 `siginfo`
+（退出还是被杀、信号名、`si_code`/`si_pid`），每次死亡写一行到 `/tmp/noctalia-waitid.log`，
+同时进入 supervisor 的日志尾部（`$XDG_CACHE_HOME/arlinux/desktop-diag.log`）。启用方式：
+
+```sh
+mv /usr/bin/noctalia /usr/bin/noctalia.real
+printf '#!/bin/bash\nexec python3 /usr/local/lib/arlinux/noctalia-waitid.py "$@"\n' > /usr/bin/noctalia
+chmod 755 /usr/bin/noctalia
+```
+
+还原：`mv /usr/bin/noctalia.real /usr/bin/noctalia`。注意包装后进程名变成
+`noctalia.real`，按名字找进程的工具（`pgrep -x noctalia`）会失配，请用
+`pgrep -f noctalia`。
