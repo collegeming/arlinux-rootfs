@@ -1,43 +1,72 @@
 # ARLinux · 点按/触摸优先的 Noctalia 布局。
 #
-# desktop.sh 每次会话把它写入 $HOME/.config/noctalia/00-arlinux.toml：配置目录按
-# 字母序合并，用户自己的 *.toml 在其后加载，因此用户设置始终优先。
+# desktop.sh 每次会话把它写入 $XDG_CONFIG_HOME/noctalia/00-arlinux.toml：Noctalia 只读
+# 配置目录里的 *.toml 并按字母序合并，因此本文件先加载，用户自己的 config.toml 等在其后
+# 加载、始终优先；GUI 改动的 settings.toml 最后加载。
 #
-# 设计前提：本实例没有物理键盘，操作全部通过点按完成；宿主在屏幕右边缘另有一
-# 条手势竖条（轻点=键盘，双击=应用抽屉，长按=AI 语音）。
+# 设计前提：本实例没有物理键盘，操作全部通过点按完成；宿主在屏幕右边缘另有一条手势
+# 竖条（轻点=键盘，双击=应用抽屉，长按=AI 语音）。固定项写桌面项 ID（文件名去掉
+# .desktop 后缀，如 zen），这是 Noctalia 5.3 的精确匹配规则。
+
+[accessibility]
+# 面板类界面（启动器、控制中心、剪贴板等）整体放大，适合手指点选。
+ui_scale = 1.25
+
+[shell]
+# 预置镜像不需要首启向导（它面向键盘操作）。
+setup_wizard_enabled = false
+
+[shell.launcher]
+# 应用启动器：图标网格，打开即进入全部应用视图。
+layout       = "full"
+app_grid     = true
+default_view = "all"
+width        = 1000
+pinned       = ["arlinux-apps", "kitty", "zen", "zcode"]
+
+[shell.window_switcher]
+# 点按式 alt+tab：面板里点卡片切换，选中卡片上的关闭控件可关闭窗口。
+style                  = "carousel"
+mru                    = true
+show_caption           = true
+show_all_outputs       = false
+current_workspace_only = false
+
+[osd]
+# 音量/亮度等提示条放大，便于阅读。
+scale = 1.25
 
 [bar.default]
 position           = "top"
-thickness          = 48
-margin_ends        = 8
-padding            = 10
-widget_spacing     = 10
-background_opacity = 0.92
+thickness          = 56
+scale              = 1.25
+padding            = 12
+widget_spacing     = 12
+margin_ends        = 10
+background_opacity = 0.94
+# 触屏没有 hover，关掉悬停提示。
+show_tooltip       = false
 start              = ["launcher", "apps", "term", "close", "switch", "diag"]
 center             = ["taskbar"]
 end                = ["clock", "volume", "battery", "control-center"]
 
-[shell.launcher]
-# 应用启动器：图标网格 + 分类，适合手指点选。
-layout     = "full"
-app_grid   = true
-categories = true
-width      = 1000
-
 [dock]
-# 底部 dock 放置常用应用：点图标启动/切换，右键菜单固定或取消固定。
+# 底部 dock 放置常用应用：点图标启动/切换，右键菜单固定或取消固定。nwg-dock 同时
+# 启用（见 desktop.sh），用过后自行决定留哪个。
 enabled           = true
 position          = "bottom"
-icon_size         = 56
-item_spacing      = 10
-margin_edge       = 10
-margin_ends       = 24
+icon_size         = 64
+item_spacing      = 12
+margin_edge       = 12
+margin_ends       = 48
 show_running      = true
 reserve_space     = true
 show_dots         = true
+# 放大效果跟随指针，触摸下无意义。
+magnification     = false
 launcher_position = "start"
 launcher_icon     = "grid-dots"
-pinned            = ["arlinux-apps", "kitty", "zen", "zcode", "nemo", "arlinux-opencode"]
+pinned            = ["arlinux-apps", "kitty", "zen", "zcode", "nemo"]
 
 # —— 点一下就能完成的操作 ——
 
@@ -45,11 +74,14 @@ pinned            = ["arlinux-apps", "kitty", "zen", "zcode", "nemo", "arlinux-o
 type = "launcher"
 
 [widget.taskbar]
-# 点图标=切换窗口，两指轻点（右键）=固定/取消固定菜单。固定项与 dock 共用同一套
-# 桌面项匹配规则，写桌面项 ID（不带 .desktop 后缀）。
-type         = "taskbar"
-show_running = true
-pinned       = ["kitty", "zen", "zcode", "arlinux-apps"]
+# 点图标=切换窗口（中键关闭在触屏上不可用，关闭走下面的按钮）。固定项与 dock 共用
+# 同一套匹配规则，写桌面项 ID。
+type             = "taskbar"
+show_running     = true
+show_all_outputs = true
+icon_scale       = 1.3
+item_spacing     = 12
+pinned           = ["kitty", "zen", "zcode", "arlinux-apps"]
 
 [widget.apps]
 # ARLinux 应用抽屉（框架提供的触摸网格；双击右边缘竖条是同一个程序）。
@@ -70,8 +102,7 @@ left = "exec kitty"
 
 [widget.close]
 # 与 super+Q 等价：关闭当前窗口。宿主合成器不画窗口装饰，所以关闭入口放在这里。
-# 命令走 arlinux-window：它在 Lua 与经典两套派发器之间自动回退，比直接写
-# hyprctl dispatch killactive 更可靠。
+# 命令走 arlinux-window：它在 Lua 与经典两套派发器之间自动回退。
 type    = "custom_button"
 glyph   = "x"
 tooltip = "关闭当前窗口"
@@ -82,14 +113,14 @@ left = "exec /usr/bin/arlinux-window close"
 [widget.switch]
 # 与 alt+tab 等价：Noctalia 的窗口切换面板。
 type    = "custom_button"
-glyph   = "layout-grid"
+glyph   = "arrows-exchange"
 tooltip = "切换窗口"
 
 [widget.switch.actions]
 left = "window-switcher"
 
 [widget.diag]
-# 会话诊断（合成器状态、窗口列表、输入法、退出记录），排障时点它。
+# 会话诊断（合成器状态、窗口列表、输入法、配置校验、退出记录），排障时点它。
 type    = "custom_button"
 glyph   = "stethoscope"
 tooltip = "桌面诊断"
