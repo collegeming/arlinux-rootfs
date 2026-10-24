@@ -14,9 +14,14 @@ on:
         required: true
         type: boolean
         default: true
+      publish_tag:
+        description: Release tag for the verified bundle (empty keeps it artifact-only)
+        required: false
+        type: string
+        default: ''
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: arch-rootfs-${{ github.ref }}
@@ -194,3 +199,40 @@ jobs:
             build/linux
             build/pipeline
           key: arlinux-arch-${{ runner.arch }}-${{ hashFiles('distributions/arch/**', 'tools/build/**', 'runtime/tools/**') }}-${{ github.run_id }}
+
+      - name: Publish the verified bundle as a release
+        if: ${{ inputs.publish_tag != '' }}
+        shell: bash
+        env:
+          TAG: ${{ inputs.publish_tag }}
+        run: |
+          set -euo pipefail
+          if gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" --silent 2>/dev/null; then
+            echo "release $TAG already exists" >&2
+            exit 1
+          fi
+          bundle=build/artifacts/rootfs/arch/default.zip
+          digest=$(sha256sum "$bundle" | cut -d' ' -f1)
+          printf '%s  %s\n' "$digest" "$(basename "$bundle")" > "$RUNNER_TEMP/SHA256SUMS"
+          cat > "$RUNNER_TEMP/notes.md" <<EOF
+          Arch Linux (Niri-style desktop) rootfs bundle for ARLinux.
+
+          Import **arlinux-arch-niri-default.zip** in the ARLinux app (this file,
+          not the repository source archive and not any wrapper zip).
+
+          - SHA-256: \`$digest\`
+          - Builder commit: \`$GITHUB_SHA\`
+          - Workflow run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID
+          - Pipeline receipt: \`default.json\`
+          - Distribution notes and prerequisites: \`distributions/arch/README.md\`
+          EOF
+          gh release create "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "Arch Niri desktop rootfs $TAG" \
+            --notes-file "$RUNNER_TEMP/notes.md" \
+            --latest=false \
+            "$bundle#arlinux-arch-niri-default.zip" \
+            build/artifacts/rootfs/arch/default.json \
+            "$RUNNER_TEMP/SHA256SUMS"
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" \
+            --json assets --jq '.assets[] | "\(.name)\t\(.size)"'
