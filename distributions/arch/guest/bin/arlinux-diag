@@ -55,6 +55,23 @@ ibus engine 2>/dev/null || echo 'ibus not ready'
 pgrep -a ibus-wayland 2>/dev/null || echo 'ibus-wayland not running'
 pgrep -a hosted-ime 2>/dev/null || true
 
+printf '\n--- compositor protocols ---\n'
+protocols_log="${XDG_RUNTIME_DIR:-/tmp}/arlinux-protocols.log"
+if [ -s "$protocols_log" ]; then
+    grep -oiE 'zwlr_foreign_toplevel_manager_v1|ext_foreign_toplevel_list_v1|hyprland_toplevel_mapping_manager_v1|zwlr_layer_shell_v1|zwp_virtual_keyboard_manager_v1|zwp_text_input_manager_v3' \
+        "$protocols_log" 2>/dev/null | sort -u || true
+    printf '(full list: %s)\n' "$protocols_log"
+else
+    echo 'not recorded (wayland-info missing or session predates this helper)'
+fi
+
+printf '\n--- noctalia configuration ---\n'
+noctalia config validate 2>&1 | tail -n 20 || echo 'noctalia config validate unavailable'
+printf '\n--- noctalia status ---\n'
+noctalia msg status 2>&1 | tail -n 10 || echo 'noctalia msg status unavailable'
+
 last_lines "$diag_log" 60
 last_lines "$status_log" 40
 last_lines "$noctalia_log" 40
+last_lines "${XDG_RUNTIME_DIR:-/tmp}/nwg-dock.log" 20
+last_lines "${XDG_RUNTIME_DIR:-/tmp}/nwg-drawer.log" 20
